@@ -16,6 +16,8 @@ The one other color is the gold border on a rare Magic card.
 | `art/merry-chrithmith.png` | The drawing. Never modified; embedded as base64 at build time. |
 | `art/endscene.png` | The photo behind the Achievements screen, original. Not used by the build. |
 | `art/endscene.jpg` | A 720 px JPEG copy of the photo; this is what the build embeds. |
+| `art/photo-music.aac` | The audio track of the screen recording, its AAC frames lifted straight out of the MP4. The build copies it to `dist/`, where the page fetches it only once the photo is unlocked. The start, fade and loop points are constants in `main.ts`. |
+| `dist/photo-music.aac` | That copy. Keep it beside `index.html`. |
 | `src/main.ts` | The whole game. The two lines to edit are at the very top. |
 | `src/index.html` | Page template. `build.mjs` inlines the compiled JS and the PNG into it. |
 | `build.mjs` | Runs `tsc`, then writes `dist/index.html`. |
@@ -43,8 +45,8 @@ npm install
 npm run build
 ```
 
-Then open `dist/index.html` in a browser. No server is needed; it has no network
-requests and no tracking.
+Then open `dist/index.html` in a browser. No server is needed; it has no tracking,
+and its one network request is for `photo-music.aac`, once the photo is unlocked.
 
 For a local server instead, `npm run dev` builds and then serves `dist/` at
 http://localhost:8123. It does not rebuild on changes; rerun it after editing.
@@ -59,8 +61,8 @@ import works.
   work. `P` or `Esc` pauses. `Space`/`Enter` starts and restarts.
 - Catch: wreaths (on the head), S.Pellegrino, Magic cards, black hearts, steak.
   One Magic card in three is rare: a gold border, and it pays three ordinary cards.
-- A wreath has to line up with the stack. While one is falling, two selection
-  handles above the stack mark the landing zone and turn solid once it is lined
+- A wreath has to line up with the stack. Two selection handles above the stack
+  mark the landing zone all run long and turn solid while a falling wreath is lined
   up. A wreath that comes down near the edge bounces off and falls clear; that
   costs nothing.
 - Avoid: the beach, Dasani, Counterspell, polyester comforters, sugar.
@@ -78,6 +80,9 @@ import works.
 - The Achievements menu lists every achievement, says how each one was earned
   once it has been, and holds a framed photo that stays locked until all 14
   achievements have been earned.
+- Resting the pointer on the unlocked photo plays its music: a fade-in, a fade
+  out near the end of the passage, then a loop. Moving off stops it. The Paint
+  music steps aside while it plays, and the M mute covers it.
 - Restore on the end screen really does restore: a second click within five seconds
   clears every achievement, the best XP, the best time and locks the photo again,
   then returns to the title screen.
@@ -94,10 +99,13 @@ loaded. Sound is on by default; `M` or the Sound menu mutes it, and the choice i
 remembered. To ship it muted instead, set `SOUND_DEFAULT` to `false` in
 `src/main.ts`.
 
-- Music: a square-wave loop built on Leontovych's four-note bell figure (Carol of
-  the Bells, 1914, public domain). Slow and sparse on the title and end screens;
-  in a run it speeds up with the difficulty, gains a counter-line and drums as the
-  run gets busy.
+- Music: a square-wave piece built on Leontovych's four-note bell figure (Carol of
+  the Bells, 1914, public domain), in four passes of sixteen bars: the figure as
+  written; new chords under it with an answering line and a walking bass; the
+  figure an octave up over Am F Dm E with a counter-line and a snare; then home
+  with the written ending. After four passes it all goes up a minor third and
+  comes round again. Slow and sparse on the title and end screens; in a run it
+  speeds up with the difficulty and the drums fill in as the run gets busy.
 - Effects: catch blips that rise in pitch with the storm count, a two-note chime
   for a wreath on the head, a buzz for a lost undo, a slide for a border wreath,
   an arpeggio for achievements, an EverQuest-style bell on each level, a

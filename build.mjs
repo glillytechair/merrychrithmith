@@ -15,4 +15,8 @@ const html = tpl.replace('__IMG__', () => png).replace('__PHOTO__', () => photo)
 
 fs.mkdirSync(path.join(root, 'dist'), { recursive: true });
 fs.writeFileSync(path.join(root, 'dist', 'index.html'), html);
+// The photo music travels beside the page rather than inside it: it is only fetched once the photo is unlocked.
+const clip = path.join(root, 'art', 'photo-music.aac');
+if (fs.existsSync(clip)) fs.copyFileSync(clip, path.join(root, 'dist', 'photo-music.aac'));
+else console.warn('art/photo-music.aac is missing: the photo will have no music until it exists');
 console.log(`dist/index.html written (${(html.length / 1024).toFixed(0)} KB)`);
