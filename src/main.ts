@@ -30,16 +30,18 @@ const LAND_FX = 0.45;            // seconds the portrait's selection flashes aft
 const PERFECT_ZONE = 0.8;        // share of the head zone, out from the stack's centre, where a wreath lands; beyond it the wreath bounces
 const EDGE_SLOP = 0.3;           // how far past the head zone a wreath still bounces off instead of falling on to a border
 const STORM_X2 = 20;             // storm count for x2
-const STORM_X3 = 40;             // storm count for x3 ("infinite")
+const STORM_X3 = 30;             // storm count for x3 ("infinite")
 const SPAWN_START = 1.25, SPAWN_END = 0.38;     // seconds between spawns
 const WARMUP_HOLD = 10, WARMUP_END = 30;        // seconds: spawns stay sparse until the hold ends, then ease to normal
 const WARMUP_SPACING = 2;                        // multiplier on the time between spawns during the hold
 const FALL_START = 140, FALL_END = 360;         // px per second
-const BAD_START = 0.14, BAD_END = 0.30;         // share of spawns that are bad
+const BAD_START = 0.20, BAD_END = 0.30;         // share of spawns that are bad
 const BAD_INSET = 26;                            // bad items only count if they hit the body, not the selection edge
 const CATCH_BAND = 56;                           // px below the portrait's top in which a falling thing can land on it
 const PAIR_START = 0.05, PAIR_END = 0.45;       // share of spawns that come as a pair
 const WREATH_SHARE = 0.15;                      // share of non-bad spawns that are wreaths
+const RARE_CARD_SHARE = 1 / 3;                  // share of Magic cards that are rare: gold border, worth more
+const RARE_CARD_MULT = 3;                       // a rare card pays this many ordinary cards
 const MOUSE_SPEED = 1700, KEY_SPEED = 620;      // px per second
 
 // ----- Layout (all in logical pixels; the canvas is scaled with CSS) --------
@@ -62,19 +64,20 @@ const SHOULDER = 0.715;                             // where the shirt starts, f
 
 // ----- Palette: everything that is not her drawing ---------------------------
 const BLACK = '#000000', DARK = '#808080', LIGHT = '#c0c0c0', WHITE = '#ffffff', MID = '#404040';
+const GOLD = '#d4af37';   // the one colour among the sprites: the border of a rare card
 // Toolbox buttons that respond when clicked (index = position, left to right, top to bottom). The rest do nothing at all.
 const TOOL_MSGS: Record<number, string> = {
   1: 'The Select tool is in use.',
   2: 'The eraser is not an undo. You have three.',
   3: 'The bucket is empty.',
-  4: 'Picked a colour: grey. As expected.',
+  4: 'Picked a color: grey. As expected.',
   5: 'Zoom: 100%. Things are the size they are.',
   8: 'The airbrush hissed. Nothing came out.',
   14: 'An ellipse is a wreath that did nothing.',
 };
 
 type Phase = 'title' | 'howto' | 'playing' | 'dying' | 'over' | 'won';
-type Kind = 'wreath' | 'pellegrino' | 'card' | 'heart' | 'steak' | 'dasani' | 'counterspell' | 'beach' | 'comforter' | 'beardman';
+type Kind = 'wreath' | 'pellegrino' | 'card' | 'heart' | 'steak' | 'dasani' | 'counterspell' | 'beach' | 'comforter' | 'sugar';
 
 // ============================================================================
 //  Bitmap font: 5x7, drawn with rectangles, never anti-aliased
@@ -171,7 +174,7 @@ function wrap(s: string, maxW: number, scale: number): string[] {
 //  Sprites: ASCII art rendered to small canvases at 3x
 // ============================================================================
 const SPR = 3;
-const INK: Record<string, string> = { '#': BLACK, 'w': WHITE, 'g': DARK, 'l': LIGHT, 'd': MID };
+const INK: Record<string, string> = { '#': BLACK, 'w': WHITE, 'g': DARK, 'l': LIGHT, 'd': MID, 'y': GOLD };
 function spriteFromRows(rows: string[]): HTMLCanvasElement {
   const w = Math.max(...rows.map(r => r.length)), h = rows.length;
   const c = document.createElement('canvas');
@@ -246,13 +249,15 @@ const ART: Record<Kind, string[]> = {
     '..##############..', '.#llllllllllllll#.', '#l#llll#llll#llll#', '#ll#ll#ll#ll#ll#l#', '#lll##llll##llll##', '#ll#ll#ll#ll#ll#l#',
     '#l#llll#llll#llll#', '#llllllllllllllll#', '#l#llll#llll#llll#', '#ll#ll#ll#ll#ll#l#', '.#llllllllll##ww#.', '..############ww#.',
   ],
-  beardman: [
-    '....######....', '...#wwwwww#...', '..#wwwwwwww#..', '..#w#wwww#w#..', '..#wwwwwwww#..', '..#www##www#..',
-    '.##dd#ww#dd##.', '#dddd#ww#dddd#', '#dddddddddddd#', '#ddd#dd#dd#dd#', '#dddddddddddd#', '.#dddddddddd#.',
-    '.#dd#ddd#ddd#.', '..#dddddddd#..', '...#dddddd#...', '....######....',
+  sugar: [   // three cubes
+    '....#######...', '....#wwwwl#...', '....#wwwwl#...', '....#wwwwl#...', '....#wwwwl#...', '....#lllll#...',
+    '##############', '#wwwwl##wwwwl#', '#wwwwl##wwwwl#', '#wwwwl##wwwwl#', '#wwwwl##wwwwl#', '#wwwwl##wwwwl#',
+    '#lllll##lllll#', '##############',
   ],
 };
 const SPRITES = {} as Record<Kind, HTMLCanvasElement>;
+// A rare card is the ordinary card inside a one-cell gold frame.
+const rareCard = spriteFromRows(['y'.repeat(ART.card[0].length + 2), ...ART.card.map(r => 'y' + r + 'y'), 'y'.repeat(ART.card[0].length + 2)]);
 (Object.keys(ART) as Kind[]).forEach(k => { SPRITES[k] = spriteFromRows(ART[k]); });
 
 interface KindInfo { good: boolean; label: string; xp: number; bad?: string[]; death?: string; }
@@ -274,9 +279,9 @@ const KINDS: Record<Kind, KindInfo> = {
   comforter:  { good: false, label: 'POLYESTER COMFORTER', xp: 0,
     bad: ['100% polyester. 0% acceptable.', 'Polyester. It makes a noise.', 'The comforter does not breathe.'],
     death: 'You have died under a polyester comforter. It did not breathe. Neither, now, do you.' },
-  beardman:   { good: false, label: 'BEARD MAN', xp: 0,
-    bad: ['Beard Man.', 'A man. A beard. Mostly beard.', 'Beard Man has arrived. Uninvited.'],
-    death: 'Beard Man got you. He was, as described, mostly beard. You have died.' },
+  sugar:      { good: false, label: 'SUGAR', xp: 0,
+    bad: ['Sugar.', 'Sugar. Nobody asked for sugar.', 'Three cubes. That is not one cube.'],
+    death: 'Sugar got you. It was, as described, sweet. You have died.' },
 };
 const BORDER_MSGS = [
   'Wreath around the portrait. A border. Wrong.',
@@ -284,7 +289,7 @@ const BORDER_MSGS = [
   'A border. Technically requested. Incorrect.',
 ];
 const BORDER_DEATH = 'The viewer got his border. You got this screen. Restore? There is nothing to restore.';
-const BAD_KINDS: Kind[] = ['dasani', 'counterspell', 'beach', 'comforter', 'beardman'];
+const BAD_KINDS: Kind[] = ['dasani', 'counterspell', 'beach', 'comforter', 'sugar'];
 
 // ============================================================================
 //  Achievements
@@ -294,18 +299,35 @@ const ACH: Record<string, string> = {
   border: 'Did what the viewer meant',
   hydrated: 'Hydrated correctly',
   card: 'Drew a card',
-  heart: 'Heart in the correct colour',
+  heart: 'Heart in the correct color',
   steak: 'Medium rare',
   two: 'Two things at once',
   infinite: 'Went infinite',
   stack5: 'Structural wreath',
   stack10: 'Load-bearing wreath',
   perfect: 'Perfect day',
-  undo: 'Pressed Ctrl+Z',
-  beard: 'Beard Man avoided',
+  sugar: 'Sugar avoided',
+  rare: 'Pulled a rare',
   palette: 'Noticed the palette',
 };
 const ACH_TOTAL = Object.keys(ACH).length;
+// How each one is earned, for the Achievements menu. Keep each under 27 characters; the column is narrow.
+const ACH_HOW: Record<string, string> = {
+  literal: 'a wreath on the head',
+  border: 'wreath around the portrait',
+  hydrated: 'catch a S.Pellegrino',
+  card: 'catch a Magic card',
+  heart: 'catch a black heart',
+  steak: 'catch a steak',
+  two: 'two catches in ' + DOUBLE_WINDOW_MS + ' ms',
+  infinite: 'storm count ' + STORM_X3,
+  stack5: 'five wreaths on the head',
+  stack10: 'ten wreaths on the head',
+  perfect: PERFECT_DAY + ' XP in one run',
+  sugar: 'let the sugar fall past',
+  rare: 'catch a gold-bordered card',
+  palette: 'click a palette color',
+};
 const STORE_ACH = 'wreathquest.achievements', STORE_BEST = 'wreathquest.best', STORE_TIME = 'wreathquest.besttime';
 const DEBUG = location.hash === '#debug' || location.hash === '#bot';   // tuning modes never save records
 const STORE_VERSION = 'wreathquest.v', SAVE_VERSION = '2';            // bump to wipe everyone's saved scores
@@ -321,7 +343,7 @@ let bestTime = Number(load(STORE_TIME) ?? 0) || 0;
 // ============================================================================
 //  State
 // ============================================================================
-interface Item { kind: Kind; x: number; y: number; w: number; h: number; vy: number; wob: number; passedHead: boolean; vx?: number; bounced?: boolean; }
+interface Item { kind: Kind; x: number; y: number; w: number; h: number; vy: number; wob: number; passedHead: boolean; vx?: number; bounced?: boolean; rare?: boolean; }
 interface Floater { text: string; x: number; y: number; t: number; life: number; scale: number; }
 interface Flyer { text: string; x0: number; y0: number; x1: number; y1: number; t: number; life: number; }   // XP on its way to the counter
 interface Btn { id: string; x: number; y: number; w: number; h: number; label: string; }
@@ -337,7 +359,7 @@ const G = {
   toolPress: -1, toolPressUntil: 0,   // a toolbox button held down for a moment after a click
   banner: null as { text: string; t: number; life: number } | null,
   achQueue: [] as string[], achT: 0,
-  borderFx: 0, invertFx: 0, shakeFx: 0, dyingT: 0,
+  borderFx: 0, infFx: 0, shakeFx: 0, dyingT: 0,   // infFx: the storm box blinks for a moment on going infinite
   lastCatchAt: -1e9, lastCatchXP: 0,
   cause: '' as Kind | 'border' | '',
   deathMsg: '',
@@ -352,6 +374,9 @@ const G = {
 let buttons: Btn[] = [];
 let portrait!: HTMLCanvasElement;   // her portrait, cropped and scaled once
 let titleArt!: HTMLCanvasElement;   // the whole drawing, for the title screen
+let photo: HTMLImageElement | null = null;   // the perfect-day photo; shown once a perfect day has happened
+let achOpen = false;                         // the Achievements dialog is up
+let restoreArmed = 0;                        // Restore needs a second click before this time (ms)
 let chrome!: HTMLCanvasElement;     // the Paint window, drawn once
 let menuRects: { label: string; x: number; w: number }[] = [];
 let paletteRects: { x: number; y: number }[] = [];
@@ -385,6 +410,13 @@ function banner(s: string, life = 1.5): void { G.banner = { text: s, t: 0, life:
 function floater(s: string, x: number, y: number, scale = 2): void { G.floaters.push({ text: s, x, y, t: 0, life: 0.9, scale }); }
 const XP_TARGET_X = 72, XP_TARGET_Y = 17;   // centre of the XP digits in the HUD
 function flyer(s: string, x: number, y: number): void { G.flyers.push({ text: s, x0: x, y0: y, x1: XP_TARGET_X, y1: XP_TARGET_Y, t: 0, life: 0.55 }); }
+/** Restore, for real: every achievement gone, best XP and best time gone, the photo locked again. */
+function resetProgress(): void {
+  everAch.clear(); bestXP = 0; bestTime = 0; G.runAch = [];
+  if (!DEBUG) { try { for (const k of [STORE_ACH, STORE_BEST, STORE_TIME]) localStorage.removeItem(k); } catch { /* fine */ } }
+  SFX.undo();
+  setStatus('Restored. There is nothing to show for it.', 5);
+}
 function unlock(id: string): void {
   if (G.runAch.includes(id)) return;
   G.runAch.push(id);
@@ -428,7 +460,7 @@ function drawToolIcon(g: CanvasRenderingContext2D, i: number, x: number, y: numb
     case 1: p.dotted(2, 2, 12, 12); break; // select
     case 2: p.fill(3, 8, 8, 5, WHITE); p.rect(3, 8, 8, 5); p.line(6, 4, 13, 4); p.line(13, 4, 13, 9); p.line(3, 8, 6, 4); p.line(11, 12, 13, 9); break; // eraser
     case 3: p.line(4, 7, 9, 3); p.line(9, 3, 13, 7); p.line(13, 7, 8, 12); p.line(8, 12, 4, 7); p.fill(6, 7, 5, 3, DARK); p.line(3, 8, 2, 12); p.dot(2, 13); break; // fill
-    case 4: p.line(3, 13, 9, 7); p.line(4, 13, 10, 7); p.fill(9, 3, 4, 4, DARK); p.rect(9, 3, 4, 4); break; // pick colour
+    case 4: p.line(3, 13, 9, 7); p.line(4, 13, 10, 7); p.fill(9, 3, 4, 4, DARK); p.rect(9, 3, 4, 4); break; // pick color
     case 5: p.ellipse(7, 6, 4, 4); p.line(10, 9, 14, 13); p.line(11, 9, 14, 12); break; // magnifier
     case 6: p.line(3, 13, 11, 5); p.line(4, 13, 12, 6); p.line(11, 5, 12, 6); p.dot(2, 14); p.fill(11, 3, 3, 3, DARK); break; // pencil
     case 7: p.fill(5, 9, 6, 4, BLACK); p.line(7, 2, 7, 8); p.line(8, 2, 8, 8); p.fill(4, 12, 8, 2, DARK); break; // brush
@@ -469,7 +501,7 @@ function buildChrome(): void {
   const my = FRAME + TITLE_H;
   let mx = FRAME + 6;
   menuRects = [];
-  for (const label of ['File', 'Edit', 'View', 'Image', 'Options', 'Help', 'Sound']) {
+  for (const label of ['File', 'Edit', 'View', 'Image', 'Options', 'Help', 'Sound', 'Achievements']) {
     const w = textW(label === 'Sound' ? 'Sound: off' : label, 2) + 12;
     menuRects.push({ label, x: mx, w });
     if (label !== 'Sound') text(g, label, mx + 6, my + 4, 2, BLACK);   // Sound is drawn live, it changes
@@ -501,7 +533,7 @@ function buildChrome(): void {
   g.fillRect(PLAY_X + PLAY_W + 1, PLAY_Y + PLAY_H / 2 - 2, 4, 4);
   g.fillRect(PLAY_X + PLAY_W / 2 - 2, PLAY_Y + PLAY_H + 1, 4, 4);
   g.fillRect(PLAY_X + PLAY_W + 1, PLAY_Y + PLAY_H + 1, 4, 4);
-  // palette: the colour box and 28 swatches. They are all grey.
+  // palette: the color box and 28 swatches. They are all grey.
   const py = PALETTE_Y + 4;
   g.fillStyle = LIGHT; g.fillRect(FRAME + 4, py, 34, 34); bevel(g, FRAME + 4, py, 34, 34, false, 1);
   g.fillStyle = WHITE; g.fillRect(FRAME + 16, py + 12, 16, 16); bevel(g, FRAME + 16, py + 12, 16, 16, true, 1);
@@ -602,6 +634,7 @@ const SFX = {
   double: () => { sfx('square', 988, 0.06, 0.16); sfx('square', 1480, 0.1, 0.16, 0.06); },
   wreath: () => { sfx('square', 880, 0.08, 0.16); sfx('square', 1320, 0.14, 0.16, 0.08); },
   bounce: () => { sfx('square', 520, 0.05, 0.14); sfx('square', 390, 0.09, 0.14, 0.05); },
+  rare: () => { sfx('triangle', 1318, 0.07, 0.16); sfx('triangle', 1760, 0.12, 0.16, 0.07); sfx('triangle', 2637, 0.16, 0.12, 0.14); },
   bad: () => { sfx('sawtooth', 120, 0.28, 0.25, 0, 60); if (ac) hiss(ac.currentTime, 0.14, 0.18, sfxGain, 1800); },
   border: () => sfx('sawtooth', 330, 0.45, 0.2, 0, 90),
   ach: () => { sfx('triangle', 880, 0.12, 0.2); sfx('triangle', 1108, 0.12, 0.2, 0.08); sfx('triangle', 1318, 0.22, 0.2, 0.16); },
@@ -668,7 +701,7 @@ function startRun(): void {
   G.t = 0; G.xp = 0; G.storm = 0; G.undos = START_UNDOS; G.stack = 0; G.level = 0;
   G.items = []; G.spawnTimer = 0.7; G.spawnCount = 0; G.dodged = 0; G.caught = 0; G.wreathsOnHead = 0;
   G.floaters = []; G.flyers = []; G.xpFlash = 0; G.landFx = 0; G.banner = null; G.achQueue = []; G.achT = 0;
-  G.borderFx = 0; G.invertFx = 0; G.shakeFx = 0; G.dyingT = 0;
+  G.borderFx = 0; G.infFx = 0; G.shakeFx = 0; G.dyingT = 0;
   G.lastCatchAt = -1e9; G.lastCatchXP = 0; G.cause = ''; G.deathMsg = '';
   G.runAch = []; G.paused = false; G.finishTime = 0;
   G.px = (PLAY_W - portrait.width) / 2; G.targetX = G.px;
@@ -688,6 +721,7 @@ function win(): void {
   SFX.win();
   unlock('perfect');
   if (!bestTime || G.t < bestTime) { bestTime = G.t; save(STORE_TIME, String(Math.round(G.t))); }
+  setStatus('Photo unlocked. It is under Achievements.', 10);
   endRun();
 }
 
@@ -720,14 +754,16 @@ function award(base: number, x: number, y: number, label: string): void {
 }
 function bumpStorm(): void {
   G.storm++;
-  if (G.storm === STORM_X3) { unlock('infinite'); G.invertFx = 0.45; banner('Storm count ' + G.storm + '. Infinite.', 1.6); }
+  if (G.storm === STORM_X3) { unlock('infinite'); G.infFx = 1.2; banner('Storm count ' + G.storm + '. Infinite.', 1.6); }
   else if (G.storm > 0 && G.storm % 10 === 0) floater('STORM ' + G.storm, PLAY_W - 90, 70, 2);
 }
 function catchGood(it: Item): void {
   G.caught++;
   bumpStorm();
   SFX.blip(G.storm);
-  award(KINDS[it.kind].xp, it.x + it.w / 2, it.y, KINDS[it.kind].label);
+  if (it.rare) SFX.rare();
+  award(KINDS[it.kind].xp * (it.rare ? RARE_CARD_MULT : 1), it.x + it.w / 2, it.y, it.rare ? 'RARE' : KINDS[it.kind].label);
+  if (it.rare) unlock('rare');
   if (it.kind === 'pellegrino') unlock('hydrated');
   if (it.kind === 'card') unlock('card');
   if (it.kind === 'heart') unlock('heart');
@@ -786,10 +822,11 @@ function spawnOne(x: number | null, kind?: Kind): Item {
     else if (Math.random() < WREATH_SHARE) kind = 'wreath';
     else kind = Math.random() < 0.14 ? 'steak' : pick(['pellegrino', 'card', 'heart'] as Kind[]);
   }
-  const s = SPRITES[kind];
+  const rare = kind === 'card' && Math.random() < RARE_CARD_SHARE;
+  const s = rare ? rareCard : SPRITES[kind];
   const w = s.width, h = s.height;
   if (x === null) x = 16 + Math.random() * (PLAY_W - 32 - w);
-  const it: Item = { kind, x: clamp(x, 8, PLAY_W - 8 - w), y: -h - 4, w, h, vy: lerp(FALL_START, FALL_END, d) * (0.85 + Math.random() * 0.3), wob: Math.random() * 7, passedHead: false };
+  const it: Item = { kind, x: clamp(x, 8, PLAY_W - 8 - w), y: -h - 4, w, h, vy: lerp(FALL_START, FALL_END, d) * (0.85 + Math.random() * 0.3), wob: Math.random() * 7, passedHead: false, rare };
   if (G.spawnCount === 0) { const r = portraitRect(); it.x = r.x + r.w * HEAD_CX - w / 2; it.vy = FALL_START; }
   G.items.push(it);
   G.spawnCount++;
@@ -823,7 +860,7 @@ function update(dt: number): void {
   if (G.achQueue.length) { G.achT += dt; if (G.achT > 2.6 + BANNER_LINGER) { G.achQueue.shift(); G.achT = 0; } }
   if (G.achQueue.length && G.achQueue[0] !== lastAchSound) { lastAchSound = G.achQueue[0]; SFX.ach(); }
   if (G.borderFx > 0) G.borderFx = Math.max(0, G.borderFx - dt / 0.9);
-  if (G.invertFx > 0) G.invertFx = Math.max(0, G.invertFx - dt);
+  if (G.infFx > 0) G.infFx = Math.max(0, G.infFx - dt);
   if (G.shakeFx > 0) G.shakeFx = Math.max(0, G.shakeFx - dt);
 
   if (G.phase === 'dying') { G.dyingT -= dt; if (G.dyingT <= 0) G.phase = 'over'; return; }
@@ -875,7 +912,7 @@ function update(dt: number): void {
     if (G.phase !== 'playing') { if (!done) keep.push(it); continue; }  // a win or death froze the field
     if (done) continue;
     if (it.y > PLAY_H + 4) {
-      if (!KINDS[it.kind].good) { G.dodged++; if (it.kind === 'beardman') unlock('beard'); }
+      if (!KINDS[it.kind].good) { G.dodged++; if (it.kind === 'sugar') unlock('sugar'); }
       continue;
     }
     keep.push(it);
@@ -965,7 +1002,7 @@ function drawItem(g: CanvasRenderingContext2D, it: Item): void {
   const bad = !KINDS[it.kind].good;
   const dx = bad ? Math.round(Math.sin(it.wob * 28) * 3) : 0;
   const x = Math.round(it.x + dx), y = Math.round(it.y);
-  g.drawImage(SPRITES[it.kind], x, y);
+  g.drawImage(it.rare ? rareCard : SPRITES[it.kind], x, y);
   if (it.kind === 'wreath') sparkle(g, x, y, it.wob, 1, 1, 3, 0.4);   // falling wreaths sparkle a little more than the stack
 }
 function drawPortrait(g: CanvasRenderingContext2D, tNow: number): void {
@@ -1018,8 +1055,13 @@ function drawHUD(g: CanvasRenderingContext2D): void {
   g.fillStyle = WHITE; g.fillRect(13, 49, 160, 6);
   g.fillStyle = BLACK; g.fillRect(13, 49, Math.round(160 * G.xp / PERFECT_DAY), 6);
   const mult = multiplier();
-  text(g, 'STORM ' + G.storm + '  ×' + mult, PLAY_W - 12, 10, 2, BLACK, 'right');
-  if (G.storm >= STORM_X3) text(g, 'INFINITE', PLAY_W - 12, 30, 2, (Math.floor(performance.now() / 250) & 1) ? BLACK : DARK, 'right');
+  const infinite = G.storm >= STORM_X3;
+  const stormStr = infinite ? 'INFINITE  ×' + mult : 'STORM ' + G.storm + '  ×' + mult;
+  // while infinite the storm box is inverted; it blinks for a moment when the storm first gets there
+  const lit = infinite && (G.infFx <= 0 || (Math.floor(G.infFx * 8) & 1) === 0);
+  if (lit) { const sw = textW(stormStr, 2); g.fillStyle = BLACK; g.fillRect(PLAY_W - 12 - sw - 4, 6, sw + 8, 22); text(g, stormStr, PLAY_W - 12, 10, 2, WHITE, 'right'); }
+  else text(g, stormStr, PLAY_W - 12, 10, 2, BLACK, 'right');
+  if (infinite) text(g, 'STORM ' + G.storm, PLAY_W - 12, 30, 2, DARK, 'right');   // the count keeps going under the box
   text(g, fmtTime(G.t), PLAY_W / 2, 10, 2, DARK, 'center');
 }
 function drawFloaters(g: CanvasRenderingContext2D): void {
@@ -1046,6 +1088,40 @@ function drawBanner(g: CanvasRenderingContext2D): void {
   g.fillStyle = WHITE; g.fillRect(x, y, w, h);
   g.fillStyle = BLACK; g.fillRect(x, y, w, 2); g.fillRect(x, y + h - 2, w, 2); g.fillRect(x, y, 2, h); g.fillRect(x + w - 2, y, 2, h);
   lines.forEach((l, i) => text(g, l, PLAY_W / 2, y + 10 + i * 20, 2, BLACK, 'center'));
+}
+function drawPhoto(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number): void {
+  if (!photo) return;
+  const sm = g.imageSmoothingEnabled; g.imageSmoothingEnabled = true;   // a photograph, not pixel art
+  g.drawImage(photo, x, y, w, h);
+  g.imageSmoothingEnabled = sm;
+}
+function drawAchDialog(g: CanvasRenderingContext2D): void {
+  buttons.length = 0;   // while this is up, only its own button is live
+  const w = 780, h = 572, x = (PLAY_W - w) / 2, y = 14;
+  dialogBox(g, x, y, w, h);
+  text(g, 'ACHIEVEMENTS', PLAY_W / 2, y + 14, 3, BLACK, 'center');
+  text(g, everAch.size + ' of ' + ACH_TOTAL + ' earned', PLAY_W / 2, y + 40, 2, DARK, 'center');
+  let cy = y + 66;
+  for (const id of Object.keys(ACH)) {
+    const got = everAch.has(id);
+    text(g, (got ? '✓ ' : '  ') + ACH[id], x + 30, cy, 2, got ? BLACK : DARK);
+    text(g, ACH_HOW[id], x + 436, cy, 2, DARK);
+    cy += 20;
+  }
+  // the photo: an empty frame until a perfect day has happened
+  const ph = 170, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 206;
+  const px = Math.round(PLAY_W / 2 - pw / 2), py = cy + 12;
+  g.fillStyle = BLACK; g.fillRect(px - 2, py - 2, pw + 4, ph + 4);
+  if (bestTime && photo) {
+    drawPhoto(g, px, py, pw, ph);
+    text(g, 'Perfect day. Wolf form.', PLAY_W / 2, py + ph + 10, 2, DARK, 'center');
+  } else {
+    g.fillStyle = WHITE; g.fillRect(px, py, pw, ph);
+    g.fillStyle = LIGHT; for (let yy = py; yy < py + ph; yy++) for (let xx = px + (yy & 1); xx < px + pw; xx += 2) g.fillRect(xx, yy, 1, 1);
+    textHalo(g, 'Locked', PLAY_W / 2, py + ph / 2 - 7, 2, BLACK, 'center');
+    text(g, 'A perfect day unlocks a photo.', PLAY_W / 2, py + ph + 10, 2, DARK, 'center');
+  }
+  button(g, 'achclose', 'Close', x + w - 180, y + h - 44, 150, 30);
 }
 function drawAchievement(g: CanvasRenderingContext2D): void {
   if (!G.achQueue.length) return;
@@ -1084,6 +1160,11 @@ function drawEndDialog(g: CanvasRenderingContext2D): void {
     text(g, 'Indeed.', PLAY_W / 2, cy, 6, BLACK, 'center'); cy += 54;
     text(g, 'A perfect day. ' + PERFECT_DAY + ' XP in ' + fmtTime(G.finishTime) + '.', PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 22;
     if (bestTime) text(g, 'Best time: ' + fmtTime(bestTime), PLAY_W / 2, cy, 2, DARK, 'center'); cy += 26;
+    if (photo) {   // the reward, small here; full size under Achievements
+      const th = 92, tw = Math.round(th * photo.naturalWidth / photo.naturalHeight), tx = x + w - 30 - tw, ty = y + 20;
+      g.fillStyle = BLACK; g.fillRect(tx - 2, ty - 2, tw + 4, th + 4);
+      drawPhoto(g, tx, ty, tw, th);
+    }
   } else {
     deathLines.forEach(l => { text(g, l, PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 20; });
     cy += 6;
@@ -1125,7 +1206,7 @@ function drawHowto(g: CanvasRenderingContext2D): void {
   const top = cy;
   legend('CATCH', x + 50, ['wreath', 'pellegrino', 'card', 'heart', 'steak']);
   cy = top;
-  legend('AVOID', x + w / 2 + 30, ['dasani', 'counterspell', 'beach', 'comforter', 'beardman']);
+  legend('AVOID', x + w / 2 + 30, ['beach', 'dasani', 'counterspell', 'comforter', 'sugar']);
   cy += 6;
   for (const l of ['Mouse, ← →, or A and D. P pauses. M mutes.', 'One minute is one XP.', PERFECT_DAY + ' XP is a perfect day.', 'Two things at once is double XP.']) { text(g, l, PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 18; }
   button(g, 'begin', 'Begin', PLAY_W / 2 - 75, y + h - 50, 150, 30);
@@ -1144,7 +1225,7 @@ function drawTitle(g: CanvasRenderingContext2D): void {
 function render(tNow: number): void {
   buttons = [];
   ctx.drawImage(chrome, 0, 0);
-  const soundMenu = menuRects[menuRects.length - 1];
+  const soundMenu = menuRects.find(m => m.label === 'Sound')!;
   text(ctx, soundOn ? 'Sound' : 'Sound: off', soundMenu.x + 6, FRAME + TITLE_H + 4, 2, soundOn ? BLACK : DARK);
   // status bar text
   const sy = STATUS_Y + 6;
@@ -1171,7 +1252,6 @@ function render(tNow: number): void {
     for (const it of G.items) drawItem(ctx, it);
     drawHUD(ctx);
     drawFloaters(ctx);
-    if (G.invertFx > 0) { ctx.globalCompositeOperation = 'difference'; ctx.fillStyle = WHITE; ctx.fillRect(0, 0, PLAY_W, PLAY_H); ctx.globalCompositeOperation = 'source-over'; }
     drawPortrait(ctx, tNow);
     drawBanner(ctx);
     if (G.paused && G.phase === 'playing') {
@@ -1183,6 +1263,7 @@ function render(tNow: number): void {
     if (G.phase === 'over' || G.phase === 'won') drawEndDialog(ctx);
     drawAchievement(ctx);
   }
+  if (achOpen) drawAchDialog(ctx);
   ctx.restore();
 }
 
@@ -1201,8 +1282,12 @@ function hitButton(x: number, y: number): Btn | null {
 function onButton(id: string): void {
   switch (id) {
     case 'begin': startRun(); break;
+    case 'achclose': achOpen = false; break;
     case 'restart': startRun(); break;
-    case 'restore': SFX.undo(); setStatus('There are no saved games. There never were.', 4); break;
+    case 'restore':
+      if (restoreArmed > performance.now()) { restoreArmed = 0; resetProgress(); }
+      else { restoreArmed = performance.now() + 5000; SFX.undo(); setStatus('Clears records and the photo. Click again.', 5); }
+      break;
     case 'quit': SFX.click(); G.phase = 'title'; G.items = []; setStatus('Quit to where?', 4); break;
   }
 }
@@ -1219,6 +1304,7 @@ function chromeClick(x: number, y: number): boolean {
       else if (m.label === 'File') setStatus('Save As...  untitled.bmp  (It will not save.)', 4);
       else if (m.label === 'Image') setStatus('Everything will stay grey.', 4);
       else if (m.label === 'View') setStatus('View: this is the view.', 4);
+      else if (m.label === 'Achievements') { achOpen = true; if (G.phase === 'playing') G.paused = true; SFX.click(); }
       else setStatus('Options: there are no options. It is 1995.', 4);
       return true;
     }
@@ -1255,6 +1341,7 @@ canvas.addEventListener('mousedown', e => {
   const { x, y } = toLogical(e);
   const b = hitButton(x, y);
   if (b) { onButton(b.id); G.hover = null; return; }
+  if (achOpen) { achOpen = false; return; }   // any click outside its button closes the Achievements dialog
   if (chromeClick(x, y)) return;
   if (G.phase === 'title') G.phase = 'howto';
   else if (G.phase === 'howto') startRun();
@@ -1267,13 +1354,13 @@ window.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && (k === 'z' || k === 'Z')) {
     e.preventDefault();
     SFX.undo();
-    if (G.phase === 'playing') unlock('undo');
     setStatus('Nothing to undo.', 3);
     return;
   }
   if (!e.ctrlKey && !e.metaKey && !e.altKey && (k === 'm' || k === 'M')) { setSound(!soundOn); if (soundOn) SFX.click(); return; }
   if ((e.ctrlKey || e.metaKey) && (k === 's' || k === 'S')) { e.preventDefault(); setStatus('Saved as untitled.bmp. (It was not.)', 4); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (achOpen && (k === 'Escape' || k === ' ' || k === 'Enter')) { achOpen = false; SFX.click(); e.preventDefault(); return; }
   if (k === 'ArrowLeft' || k === 'a' || k === 'A') { G.keys.left = true; e.preventDefault(); }
   if (k === 'ArrowRight' || k === 'd' || k === 'D') { G.keys.right = true; e.preventDefault(); }
   if (k === ' ' || k === 'Enter') {
@@ -1325,4 +1412,7 @@ img.onload = () => {
   requestAnimationFrame(frame);
 };
 img.src = (window as unknown as { __WQ_ART__: string }).__WQ_ART__;
+const photoImg = new Image();   // loads in the background; nothing waits on it
+photoImg.onload = () => { photo = photoImg; };
+photoImg.src = (window as unknown as { __WQ_PHOTO__: string }).__WQ_PHOTO__;
 })();

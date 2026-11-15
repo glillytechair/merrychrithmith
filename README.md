@@ -7,12 +7,15 @@ and a border is wrong.
 
 Everything on screen is black, grey and white except the drawing itself, which is
 embedded unedited (the game only crops rectangles out of the original PNG).
+The one other color is the gold border on a rare Magic card.
 
 ## Files
 
 | Path | What it is |
 | --- | --- |
 | `art/merry-chrithmith.png` | The drawing. Never modified; embedded as base64 at build time. |
+| `art/endscene.png` | The perfect-day photo, original. Not used by the build. |
+| `art/endscene.jpg` | A 720 px JPEG copy of the photo; this is what the build embeds. |
 | `src/main.ts` | The whole game. The two lines to edit are at the very top. |
 | `src/index.html` | Page template. `build.mjs` inlines the compiled JS and the PNG into it. |
 | `build.mjs` | Runs `tsc`, then writes `dist/index.html`. |
@@ -55,19 +58,25 @@ import works.
 - Mouse moves the portrait (the cursor sits over the head). `←`/`→` or `A`/`D` also
   work. `P` or `Esc` pauses. `Space`/`Enter` starts and restarts.
 - Catch: wreaths (on the head), S.Pellegrino, Magic cards, black hearts, steak.
+  One Magic card in three is rare: a gold border, and it pays three ordinary cards.
 - A wreath has to line up with the stack. While one is falling, two selection
   handles above the stack mark the landing zone and turn solid once it is lined
   up. A wreath that comes down near the edge bounces off and falls clear; that
   costs nothing.
-- Avoid: Dasani, Counterspell, the beach, polyester comforters, Beard Man.
+- Avoid: the beach, Dasani, Counterspell, polyester comforters, sugar.
   Bad things wobble as they fall.
 - Score is XP. 1 minute = 1 XP. 1,080 XP is a perfect day and ends the run with
   "Indeed." Every 108 XP is a level ("Ding.").
 - Two catches within 140 ms count as two things at once: both are doubled.
-- Consecutive catches raise the storm count. ×2 at 20, ×3 at 40 ("Went infinite").
+- Consecutive catches raise the storm count. ×2 at 20, ×3 at 30 ("Went infinite").
   A bad catch resets it.
 - You have three undos. A bad catch or a border wreath spends one. The first border
   wreath of a run is free. Zero undos is a Sierra-style death.
+- The Achievements menu lists every achievement and how it is earned, and holds
+  a framed photo that stays locked until a perfect day. The perfect-day screen
+  shows a small copy of the photo as well.
+- Restore on the end screen really does restore: a second click within five seconds
+  clears every achievement, the best XP, the best time and locks the photo again.
 - Ctrl+Z, the palette, the menus, some of the tools and the Restore button all do
   something. The other tools do nothing, on purpose.
 - Best XP, best perfect-day time, the sound setting and the set of achievements
@@ -102,15 +111,16 @@ All pacing lives in the constants block near the top of `src/main.ts`:
 | `WARMUP_HOLD` / `WARMUP_END` | seconds: spawns stay sparse until the hold ends, then ease to normal | 10 / 30 |
 | `WARMUP_SPACING` | multiplier on the time between spawns during the hold | 2 |
 | `FALL_START` / `FALL_END` | fall speed in px/s | 140 / 360 |
-| `BAD_START` / `BAD_END` | share of spawns that are bad | 0.14 / 0.30 |
+| `BAD_START` / `BAD_END` | share of spawns that are bad | 0.20 / 0.30 |
 | `PAIR_START` / `PAIR_END` | share of spawns that arrive as a pair | 0.05 / 0.45 |
 | `XP_GOOD` / `XP_STEAK` / `XP_WREATH` | base XP per catch | 5 / 6 / 10 |
-| `STORM_X2` / `STORM_X3` | storm counts for the ×2 and ×3 multipliers | 20 / 40 |
+| `STORM_X2` / `STORM_X3` | storm counts for the ×2 and ×3 multipliers | 20 / 30 |
 | `BAD_INSET` | bad things must hit the body, this many px inside the selection edge | 26 |
 | `CATCH_BAND` | things can only land within this band below the portrait's top | 56 |
 | `PERFECT_ZONE` | share of the head zone, out from the stack's centre, where a wreath lands | 0.8 |
 | `EDGE_SLOP` | how far past the head zone a wreath still bounces off instead of becoming a border | 0.3 |
 | `WREATH_SHARE` | share of good spawns that are wreaths | 0.15 |
+| `RARE_CARD_SHARE` / `RARE_CARD_MULT` | share of Magic cards that are rare, and what a rare pays | 1/3 / 3 |
 
 The first ten seconds spawn at half the usual rate, easing to the normal rate by
 thirty seconds, so the player has time to settle in.
