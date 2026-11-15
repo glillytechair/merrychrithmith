@@ -75,7 +75,7 @@ import works.
 - The item achievements take a few of a kind in one run: five S.Pellegrino, five
   Magic cards, five black hearts, three steaks, two sugars dodged.
 - The Achievements menu lists every achievement, says how each one was earned
-  once it has been, and holds a framed photo that stays locked until all 15
+  once it has been, and holds a framed photo that stays locked until all 14
   achievements have been earned.
 - Restore on the end screen really does restore: a second click within five seconds
   clears every achievement, the best XP, the best time and locks the photo again,

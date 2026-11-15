@@ -298,7 +298,6 @@ const BAD_KINDS: Kind[] = ['dasani', 'counterspell', 'beach', 'comforter', 'suga
 // ============================================================================
 const ACH: Record<string, string> = {
   literal: 'Took the instructions literally',
-  border: 'Did what the viewer meant',
   hydrated: 'Hydrated correctly',
   card: 'Drew a card',
   heart: 'Heart in the correct color',
@@ -320,7 +319,6 @@ const NUM_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 
 // How each one is earned, for the Achievements menu. Keep each under 27 characters; the column is narrow.
 const ACH_HOW: Record<string, string> = {
   literal: 'a wreath on the head',
-  border: 'wreath around the portrait',
   hydrated: NUM_WORDS[ACH_NEED.hydrated] + ' S.Pellegrino in a run',
   card: NUM_WORDS[ACH_NEED.card] + ' Magic cards in a run',
   heart: NUM_WORDS[ACH_NEED.heart] + ' black hearts in a run',
@@ -359,7 +357,7 @@ const G = {
   phase: 'title' as Phase,
   t: 0, xp: 0, storm: 0, undos: START_UNDOS, stack: 0, level: 0,
   items: [] as Item[],
-  spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0,
+  spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0, borders: 0,
   catches: {} as Partial<Record<Kind, number>>, dodges: {} as Partial<Record<Kind, number>>,   // per kind, this run
   px: 0, targetX: 0,
   floaters: [] as Floater[],
@@ -705,7 +703,7 @@ function startRun(): void {
   lastAchSound = '';
   G.phase = 'playing';
   G.t = 0; G.xp = 0; G.storm = 0; G.undos = START_UNDOS; G.stack = 0; G.level = 0;
-  G.items = []; G.spawnTimer = 0.7; G.spawnCount = 0; G.dodged = 0; G.caught = 0; G.wreathsOnHead = 0; G.catches = {}; G.dodges = {};
+  G.items = []; G.spawnTimer = 0.7; G.spawnCount = 0; G.dodged = 0; G.caught = 0; G.wreathsOnHead = 0; G.borders = 0; G.catches = {}; G.dodges = {};
   G.floaters = []; G.flyers = []; G.xpFlash = 0; G.landFx = 0; G.banner = null; G.achQueue = []; G.achT = 0;
   G.borderFx = 0; G.infFx = 0; G.shakeFx = 0; G.dyingT = 0;
   G.lastCatchAt = -1e9; G.lastCatchXP = 0; G.cause = ''; G.deathMsg = '';
@@ -810,8 +808,8 @@ function catchBad(it: Item): void { loseUndo(it.kind, pick(KINDS[it.kind].bad!))
 function borderFail(): void {
   G.borderFx = 1;
   SFX.border();
-  const first = !G.runAch.includes('border');
-  unlock('border');
+  const first = G.borders === 0;   // the first border of a run is free
+  G.borders++;
   if (first) { G.storm = 0; G.shakeFx = 0.35; banner(pick(BORDER_MSGS) + ' The first one is free.', 2); setStatus('A border. No undo spent, this once.', 3); return; }
   loseUndo('border', pick(BORDER_MSGS));
 }
@@ -1123,7 +1121,7 @@ function drawAchDialog(g: CanvasRenderingContext2D): void {
     cy += 20;
   }
   // the photo: an empty frame until every achievement has been earned
-  const ph = 150, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 182;
+  const ph = 170, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 206;
   const px = Math.round(PLAY_W / 2 - pw / 2), py = cy + 12;
   g.fillStyle = BLACK; g.fillRect(px - 2, py - 2, pw + 4, ph + 4);
   if (everAch.size >= ACH_TOTAL && photo) {

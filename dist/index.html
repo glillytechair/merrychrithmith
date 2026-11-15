@@ -331,7 +331,6 @@
     // ============================================================================
     const ACH = {
         literal: 'Took the instructions literally',
-        border: 'Did what the viewer meant',
         hydrated: 'Hydrated correctly',
         card: 'Drew a card',
         heart: 'Heart in the correct color',
@@ -353,7 +352,6 @@
     // How each one is earned, for the Achievements menu. Keep each under 27 characters; the column is narrow.
     const ACH_HOW = {
         literal: 'a wreath on the head',
-        border: 'wreath around the portrait',
         hydrated: NUM_WORDS[ACH_NEED.hydrated] + ' S.Pellegrino in a run',
         card: NUM_WORDS[ACH_NEED.card] + ' Magic cards in a run',
         heart: NUM_WORDS[ACH_NEED.heart] + ' black hearts in a run',
@@ -397,7 +395,7 @@
         phase: 'title',
         t: 0, xp: 0, storm: 0, undos: START_UNDOS, stack: 0, level: 0,
         items: [],
-        spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0,
+        spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0, borders: 0,
         catches: {}, dodges: {}, // per kind, this run
         px: 0, targetX: 0,
         floaters: [],
@@ -985,6 +983,7 @@
         G.dodged = 0;
         G.caught = 0;
         G.wreathsOnHead = 0;
+        G.borders = 0;
         G.catches = {};
         G.dodges = {};
         G.floaters = [];
@@ -1142,8 +1141,8 @@
     function borderFail() {
         G.borderFx = 1;
         SFX.border();
-        const first = !G.runAch.includes('border');
-        unlock('border');
+        const first = G.borders === 0; // the first border of a run is free
+        G.borders++;
         if (first) {
             G.storm = 0;
             G.shakeFx = 0.35;
@@ -1609,7 +1608,7 @@
             cy += 20;
         }
         // the photo: an empty frame until every achievement has been earned
-        const ph = 150, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 182;
+        const ph = 170, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 206;
         const px = Math.round(PLAY_W / 2 - pw / 2), py = cy + 12;
         g.fillStyle = BLACK;
         g.fillRect(px - 2, py - 2, pw + 4, ph + 4);
