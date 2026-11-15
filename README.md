@@ -5,7 +5,7 @@ slides left and right at the bottom of a Paint window; wreaths fall from the top
 A wreath on the head scores. A wreath that lands around the portrait is a border,
 and a border is wrong.
 
-Everything on screen is black, grey and white except the drawing itself, which is
+Everything on screen is black, gray and white except the drawing itself, which is
 embedded unedited (the game only crops rectangles out of the original PNG).
 The one other color is the gold border on a rare Magic card.
 
@@ -121,7 +121,7 @@ All pacing lives in the constants block near the top of `src/main.ts`:
 | `STORM_X2` / `STORM_X3` | storm counts for the ×2 and ×3 multipliers | 20 / 30 |
 | `BAD_INSET` | bad things must hit the body, this many px inside the selection edge | 26 |
 | `CATCH_BAND` | things can only land within this band below the portrait's top | 56 |
-| `PERFECT_ZONE` | share of the head zone, out from the stack's centre, where a wreath lands | 0.8 |
+| `PERFECT_ZONE` | share of the head zone, out from the stack's center, where a wreath lands | 0.8 |
 | `EDGE_SLOP` | how far past the head zone a wreath still bounces off instead of becoming a border | 0.3 |
 | `WREATH_SHARE` | share of good spawns that are wreaths | 0.15 |
 | `RARE_CARD_SHARE` / `RARE_CARD_MULT` | share of Magic cards that are rare, and what a rare pays | 1/3 / 3 |

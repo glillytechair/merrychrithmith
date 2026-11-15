@@ -27,7 +27,7 @@ const XP_WREATH = 10;
 const DOUBLE_WINDOW_MS = 140;    // two catches this close together = two things at once
 const BANNER_LINGER = 1;         // extra seconds every pop-up banner and achievement toast stays on screen
 const LAND_FX = 0.45;            // seconds the portrait's selection flashes after a wreath lands
-const PERFECT_ZONE = 0.8;        // share of the head zone, out from the stack's centre, where a wreath lands; beyond it the wreath bounces
+const PERFECT_ZONE = 0.8;        // share of the head zone, out from the stack's center, where a wreath lands; beyond it the wreath bounces
 const EDGE_SLOP = 0.3;           // how far past the head zone a wreath still bounces off instead of falling on to a border
 const STORM_X2 = 20;             // storm count for x2
 const STORM_X3 = 30;             // storm count for x3 ("infinite")
@@ -59,12 +59,12 @@ const STATUS_Y = PALETTE_Y + PALETTE_H;
 const CROP = { x: 540, y: 296, w: 500, h: 523 };   // the portrait
 const PORTRAIT_H = 200;                             // sprite height in play pixels
 const HEAD_L = 0.12, HEAD_R = 0.64;                 // head zone, fraction of sprite width
-const HEAD_CX = 0.375;                              // centre of the drawn wreath
+const HEAD_CX = 0.375;                              // center of the drawn wreath
 const SHOULDER = 0.715;                             // where the shirt starts, fraction of height
 
 // ----- Palette: everything that is not her drawing ---------------------------
 const BLACK = '#000000', DARK = '#808080', LIGHT = '#c0c0c0', WHITE = '#ffffff', MID = '#404040';
-const GOLD = '#d4af37';   // the one colour among the sprites: the border of a rare card
+const GOLD = '#d4af37';   // the one color among the sprites: the border of a rare card
 // Toolbox buttons that respond when clicked (index = position, left to right, top to bottom). The rest do nothing at all.
 const TOOL_MSGS: Record<number, string> = {
   1: 'The Select tool is in use.',
@@ -279,10 +279,10 @@ const KINDS: Record<Kind, KindInfo> = {
     bad: ['The beach. No.', 'Beach. Sand in everything.', 'The beach. Bright, loud, and wet.'],
     death: 'You went to the beach. It was bright, and there was sand in everything. You have died.' },
   comforter:  { good: false, label: 'POLYESTER COMFORTER', xp: 0,
-    bad: ['100% polyester. 0% acceptable.', 'Polyester. It makes a noise.', 'The comforter does not breathe.'],
+    bad: ['100% polyester. 0% acceptable.', 'Polyester. It crackles.', 'The comforter does not breathe.'],
     death: 'You have died under a polyester comforter. It did not breathe. Neither, now, do you.' },
   sugar:      { good: false, label: 'SUGAR', xp: 0,
-    bad: ['Sugar.', 'Sugar. Nobody asked for sugar.', 'Three cubes. That is not one cube.'],
+    bad: ['Sugar. Processed. Next.'],
     death: 'Sugar got you. It was, as described, sweet. You have died.' },
 };
 const BORDER_MSGS = [
@@ -304,10 +304,10 @@ const ACH: Record<string, string> = {
   steak: 'Medium rare',
   two: 'Two things at once',
   infinite: 'Went infinite',
-  stack5: 'Structural wreath',
+  stack5: 'Load-bearing wreath',
   perfect: 'Perfect day',
-  sugar: 'Sugar avoided',
-  beach: 'Went to the beach',
+  sugar: 'Read the label',
+  beach: 'Sand in everything',
   tools: 'Clicked around',
   rare: 'Pulled a rare',
   palette: 'Noticed the palette',
@@ -414,7 +414,7 @@ function stackHeight(): number { return Math.min(G.stack, 14) * 12; }
 function setStatus(s: string, secs = 3): void { G.status = s; G.statusT = secs; }
 function banner(s: string, life = 1.5): void { G.banner = { text: s, t: 0, life: life + BANNER_LINGER }; }
 function floater(s: string, x: number, y: number, scale = 2): void { G.floaters.push({ text: s, x, y, t: 0, life: 0.9, scale }); }
-const XP_TARGET_X = 72, XP_TARGET_Y = 17;   // centre of the XP digits in the HUD
+const XP_TARGET_X = 72, XP_TARGET_Y = 17;   // center of the XP digits in the HUD
 function flyer(s: string, x: number, y: number): void { G.flyers.push({ text: s, x0: x, y0: y, x1: XP_TARGET_X, y1: XP_TARGET_Y, t: 0, life: 0.55 }); }
 /** Restore, for real: every achievement gone, best XP and best time gone, the photo locked again. */
 function resetProgress(): void {
@@ -542,19 +542,19 @@ function buildChrome(): void {
   g.fillRect(PLAY_X + PLAY_W + 1, PLAY_Y + PLAY_H / 2 - 2, 4, 4);
   g.fillRect(PLAY_X + PLAY_W / 2 - 2, PLAY_Y + PLAY_H + 1, 4, 4);
   g.fillRect(PLAY_X + PLAY_W + 1, PLAY_Y + PLAY_H + 1, 4, 4);
-  // palette: the color box and 28 swatches. They are all grey.
+  // palette: the color box and 28 swatches. They are all gray.
   const py = PALETTE_Y + 4;
   g.fillStyle = LIGHT; g.fillRect(FRAME + 4, py, 34, 34); bevel(g, FRAME + 4, py, 34, 34, false, 1);
   g.fillStyle = WHITE; g.fillRect(FRAME + 16, py + 12, 16, 16); bevel(g, FRAME + 16, py + 12, 16, 16, true, 1);
   g.fillStyle = BLACK; g.fillRect(FRAME + 9, py + 5, 16, 16); bevel(g, FRAME + 9, py + 5, 16, 16, true, 1);
-  const greys = ['#000000', '#404040', '#606060', '#808080', '#a0a0a0', '#c0c0c0', '#e0e0e0', '#ffffff', '#101010', '#202020', '#303030', '#505050', '#707070', '#909090',
+  const grays = ['#000000', '#404040', '#606060', '#808080', '#a0a0a0', '#c0c0c0', '#e0e0e0', '#ffffff', '#101010', '#202020', '#303030', '#505050', '#707070', '#909090',
                  '#ffffff', '#f0f0f0', '#d0d0d0', '#b0b0b0', 'dither1', '#787878', 'dither2', '#282828', '#b8b8b8', '#989898', '#585858', '#383838', '#181818', 'dither3'];
   paletteRects = [];
   for (let i = 0; i < 28; i++) {
     const col = i % 14, row = Math.floor(i / 14);
     const x = FRAME + 46 + col * 18, y = py + 1 + row * 17;
     paletteRects.push({ x, y });
-    const c = greys[i];
+    const c = grays[i];
     if (c.startsWith('dither')) {
       const [a, b] = c === 'dither1' ? [BLACK, WHITE] : c === 'dither2' ? [DARK, WHITE] : [BLACK, DARK];
       for (let yy = 0; yy < 16; yy++) for (let xx = 0; xx < 16; xx++) { g.fillStyle = ((xx + yy) & 1) ? a : b; g.fillRect(x + xx, y + yy, 1, 1); }
@@ -784,7 +784,7 @@ function landOnHead(): void {
   unlock('literal');
   if (G.stack === 5) unlock('stack5');
 }
-/** Where a point sits across the head zone: -1 at its left edge, 0 under the centre of the stack, 1 at its right edge. */
+/** Where a point sits across the head zone: -1 at its left edge, 0 under the center of the stack, 1 at its right edge. */
 function stackOffset(cx: number, P: { x: number; w: number }): number {
   const headL = P.x + HEAD_L * P.w, headR = P.x + HEAD_R * P.w;
   return (cx - (headL + headR) / 2) / ((headR - headL) / 2);
@@ -897,7 +897,7 @@ function update(dt: number): void {
     let done = false;
     if (it.kind === 'wreath') {
       if (!it.passedHead && bottom >= headLine) {
-        const off = stackOffset(cx, P);   // -1..1 across the head zone, 0 is the centre of the stack
+        const off = stackOffset(cx, P);   // -1..1 across the head zone, 0 is the center of the stack
         if (bottom <= headLine + 42 && Math.abs(off) <= PERFECT_ZONE) { landOnHead(); done = true; }
         else if (bottom <= headLine + 42 && Math.abs(off) <= 1 + EDGE_SLOP) bounceOff(it, off < 0 ? -1 : 1);
         else if (bottom > headLine + 42) it.passedHead = true;
@@ -1309,7 +1309,7 @@ function chromeClick(x: number, y: number): boolean {
       }
       else if (m.label === 'Edit') setStatus('Undo  Ctrl+Z    (Nothing to undo.)', 4);
       else if (m.label === 'File') setStatus('Save As...  untitled.bmp  (It will not save.)', 4);
-      else if (m.label === 'Image') setStatus('Everything will stay grey.', 4);
+      else if (m.label === 'Image') setStatus('Invert Colors: still gray.', 4);
       else if (m.label === 'View') setStatus('View: this is the view.', 4);
       else if (m.label === 'Achievements') { achOpen = true; if (G.phase === 'playing') G.paused = true; SFX.click(); }
       else setStatus('Options: there are no options. It is 1995.', 4);
@@ -1317,7 +1317,7 @@ function chromeClick(x: number, y: number): boolean {
     }
   }
   if (y >= PALETTE_Y && y < STATUS_Y) {
-    for (const p of paletteRects) if (x >= p.x && x < p.x + 16 && y >= p.y && y < p.y + 16) { SFX.click(); unlock('palette'); setStatus('They are all grey.', 4); return true; }
+    for (const p of paletteRects) if (x >= p.x && x < p.x + 16 && y >= p.y && y < p.y + 16) { SFX.click(); unlock('palette'); setStatus('They are all gray.', 4); return true; }
     if (x < FRAME + 40) { setStatus('Foreground: black. Background: white. Correct.', 4); return true; }
   }
   if (x < PLAY_X - PAD && y > FRAME + TITLE_H + MENU_H && y < PALETTE_Y) {
