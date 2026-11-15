@@ -32,7 +32,7 @@ const LAND_FX = 0.45;            // seconds the portrait's selection flashes aft
 const PERFECT_ZONE = 0.8;        // share of the head zone, out from the stack's center, where a wreath lands; beyond it the wreath bounces
 const EDGE_SLOP = 0.3;           // how far past the head zone a wreath still bounces off instead of falling on to a border
 const STORM_X2 = 20;             // storm count for x2
-const STORM_X3 = 30;             // storm count for x3 ("infinite")
+const STORM_X3 = 25;             // storm count for x3 ("infinite")
 const SPAWN_START = 1.25, SPAWN_END = 0.38;     // seconds between spawns
 const WARMUP_HOLD = 10, WARMUP_END = 30;        // seconds: spawns stay sparse until the hold ends, then ease to normal
 const WARMUP_SPACING = 2;                        // multiplier on the time between spawns during the hold
