@@ -304,7 +304,6 @@ const ACH: Record<string, string> = {
   two: 'Two things at once',
   infinite: 'Went infinite',
   stack5: 'Structural wreath',
-  stack7: 'Load-bearing wreath',
   perfect: 'Perfect day',
   sugar: 'Sugar avoided',
   beach: 'Went to the beach',
@@ -326,7 +325,6 @@ const ACH_HOW: Record<string, string> = {
   two: 'two catches in ' + DOUBLE_WINDOW_MS + ' ms',
   infinite: 'storm count ' + STORM_X3,
   stack5: 'five wreaths on the head',
-  stack7: 'seven wreaths on the head',
   perfect: PERFECT_DAY + ' XP in one run',
   sugar: 'let ' + NUM_WORDS[ACH_NEED.sugar] + ' sugars fall past',
   beach: 'die to the beach',
@@ -783,7 +781,6 @@ function landOnHead(): void {
   award(XP_WREATH, r.x + r.w * HEAD_CX, r.y - stackHeight() - 10, 'ON HEAD');
   unlock('literal');
   if (G.stack === 5) unlock('stack5');
-  if (G.stack === 7) unlock('stack7');
 }
 /** Where a point sits across the head zone: -1 at its left edge, 0 under the centre of the stack, 1 at its right edge. */
 function stackOffset(cx: number, P: { x: number; w: number }): number {
@@ -1122,7 +1119,7 @@ function drawAchDialog(g: CanvasRenderingContext2D): void {
     cy += 20;
   }
   // the photo: an empty frame until every achievement has been earned
-  const ph = 150, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 182;
+  const ph = 170, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 206;
   const px = Math.round(PLAY_W / 2 - pw / 2), py = cy + 12;
   g.fillStyle = BLACK; g.fillRect(px - 2, py - 2, pw + 4, ph + 4);
   if (everAch.size >= ACH_TOTAL && photo) {
