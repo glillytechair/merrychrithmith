@@ -401,7 +401,7 @@
         phase: 'title',
         t: 0, xp: 0, storm: 0, undos: START_UNDOS, stack: 0, level: 0,
         items: [],
-        spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0, borders: 0,
+        spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0,
         catches: {}, dodges: {}, // per kind, this run
         px: 0, targetX: 0,
         floaters: [],
@@ -1128,7 +1128,6 @@
         G.dodged = 0;
         G.caught = 0;
         G.wreathsOnHead = 0;
-        G.borders = 0;
         G.catches = {};
         G.dodges = {};
         G.floaters = [];
@@ -1290,15 +1289,6 @@
     function borderFail() {
         G.borderFx = 1;
         SFX.border();
-        const first = G.borders === 0; // the first border of a run is free
-        G.borders++;
-        if (first) {
-            G.storm = 0;
-            G.shakeFx = 0.35;
-            banner(pick(BORDER_MSGS) + ' The first one is free.', 2);
-            setStatus('A border. No undo spent, this once.', 3);
-            return;
-        }
         loseUndo('border', pick(BORDER_MSGS));
     }
     // ============================================================================
@@ -1789,7 +1779,7 @@
         const t = G.achT;
         const slide = t < 0.25 ? 1 - t / 0.25 : t > 2.3 + BANNER_LINGER ? (t - 2.3 - BANNER_LINGER) / 0.3 : 0;
         const w = Math.max(textW('ACHIEVEMENT UNLOCKED', 2), textW(name, 2)) + 76, h = 52;
-        const x = Math.round(PLAY_W / 2 - w / 2), y = Math.round(64 - slide * (h + 70));
+        const x = Math.round(PLAY_W - 12 - w + slide * (w + 24)), y = 52; // top right, under the storm box; slides in from the edge
         g.fillStyle = BLACK;
         g.fillRect(x, y, w, h);
         g.fillStyle = WHITE;

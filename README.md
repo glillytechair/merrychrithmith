@@ -73,8 +73,8 @@ import works.
 - The fifth wreath on the head pays a flat 50 XP bonus on the spot.
 - Consecutive catches raise the storm count. ×2 at 20, ×3 at 30 ("Went infinite").
   A bad catch resets it.
-- You have three undos. A bad catch or a border wreath spends one. The first border
-  wreath of a run is free. Zero undos is a Sierra-style death.
+- You have three undos. A bad catch or a border wreath spends one. Zero undos is
+  a Sierra-style death.
 - The item achievements take a few of a kind in one run: five S.Pellegrino, five
   Magic cards, five black hearts, three steaks, two sugars dodged.
 - The Achievements menu lists every achievement, says how each one was earned

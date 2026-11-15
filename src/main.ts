@@ -363,7 +363,7 @@ const G = {
   phase: 'title' as Phase,
   t: 0, xp: 0, storm: 0, undos: START_UNDOS, stack: 0, level: 0,
   items: [] as Item[],
-  spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0, borders: 0,
+  spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0,
   catches: {} as Partial<Record<Kind, number>>, dodges: {} as Partial<Record<Kind, number>>,   // per kind, this run
   px: 0, targetX: 0,
   floaters: [] as Floater[],
@@ -808,7 +808,7 @@ function startRun(): void {
   lastAchSound = '';
   G.phase = 'playing';
   G.t = 0; G.xp = 0; G.storm = 0; G.undos = START_UNDOS; G.stack = 0; G.level = 0;
-  G.items = []; G.spawnTimer = 0.7; G.spawnCount = 0; G.dodged = 0; G.caught = 0; G.wreathsOnHead = 0; G.borders = 0; G.catches = {}; G.dodges = {};
+  G.items = []; G.spawnTimer = 0.7; G.spawnCount = 0; G.dodged = 0; G.caught = 0; G.wreathsOnHead = 0; G.catches = {}; G.dodges = {};
   G.floaters = []; G.flyers = []; G.xpFlash = 0; G.landFx = 0; G.banner = null; G.achQueue = []; G.achT = 0;
   G.borderFx = 0; G.infFx = 0; G.shakeFx = 0; G.dyingT = 0;
   G.lastCatchAt = -1e9; G.lastCatchXP = 0; G.cause = ''; G.deathMsg = '';
@@ -915,9 +915,6 @@ function catchBad(it: Item): void { loseUndo(it.kind, pick(KINDS[it.kind].bad!))
 function borderFail(): void {
   G.borderFx = 1;
   SFX.border();
-  const first = G.borders === 0;   // the first border of a run is free
-  G.borders++;
-  if (first) { G.storm = 0; G.shakeFx = 0.35; banner(pick(BORDER_MSGS) + ' The first one is free.', 2); setStatus('A border. No undo spent, this once.', 3); return; }
   loseUndo('border', pick(BORDER_MSGS));
 }
 
@@ -1253,7 +1250,7 @@ function drawAchievement(g: CanvasRenderingContext2D): void {
   const t = G.achT;
   const slide = t < 0.25 ? 1 - t / 0.25 : t > 2.3 + BANNER_LINGER ? (t - 2.3 - BANNER_LINGER) / 0.3 : 0;
   const w = Math.max(textW('ACHIEVEMENT UNLOCKED', 2), textW(name, 2)) + 76, h = 52;
-  const x = Math.round(PLAY_W / 2 - w / 2), y = Math.round(64 - slide * (h + 70));
+  const x = Math.round(PLAY_W - 12 - w + slide * (w + 24)), y = 52;   // top right, under the storm box; slides in from the edge
   g.fillStyle = BLACK; g.fillRect(x, y, w, h);
   g.fillStyle = WHITE; g.fillRect(x + 2, y + 2, w - 4, h - 4);
   g.fillStyle = BLACK; g.fillRect(x + 4, y + 4, w - 8, h - 8);
