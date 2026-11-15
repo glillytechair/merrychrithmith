@@ -78,7 +78,8 @@ import works.
   once it has been, and holds a framed photo that stays locked until all 15
   achievements have been earned.
 - Restore on the end screen really does restore: a second click within five seconds
-  clears every achievement, the best XP, the best time and locks the photo again.
+  clears every achievement, the best XP, the best time and locks the photo again,
+  then returns to the title screen.
 - Ctrl+Z, the palette, the menus, some of the tools and the Restore button all do
   something. The other tools do nothing, on purpose.
 - Best XP, best perfect-day time, the sound setting and the set of achievements

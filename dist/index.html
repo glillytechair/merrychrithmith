@@ -337,7 +337,7 @@
         two: 'Two things at once',
         infinite: 'Went infinite',
         stack5: 'Structural wreath',
-        stack10: 'Load-bearing wreath',
+        stack7: 'Load-bearing wreath',
         perfect: 'Perfect day',
         sugar: 'Sugar avoided',
         beach: 'Went to the beach',
@@ -359,7 +359,7 @@
         two: 'two catches in ' + DOUBLE_WINDOW_MS + ' ms',
         infinite: 'storm count ' + STORM_X3,
         stack5: 'five wreaths on the head',
-        stack10: 'ten wreaths on the head',
+        stack7: 'seven wreaths on the head',
         perfect: PERFECT_DAY + ' XP in one run',
         sugar: 'let ' + NUM_WORDS[ACH_NEED.sugar] + ' sugars fall past',
         beach: 'die to the beach',
@@ -1108,8 +1108,8 @@
         unlock('literal');
         if (G.stack === 5)
             unlock('stack5');
-        if (G.stack === 10)
-            unlock('stack10');
+        if (G.stack === 7)
+            unlock('stack7');
     }
     /** Where a point sits across the head zone: -1 at its left edge, 0 under the centre of the stack, 1 at its right edge. */
     function stackOffset(cx, P) {
@@ -1840,7 +1840,9 @@
                 if (restoreArmed > performance.now()) {
                     restoreArmed = 0;
                     resetProgress();
-                }
+                    G.phase = 'title';
+                    G.items = [];
+                } // and back to the title, like a fresh install
                 else {
                     restoreArmed = performance.now() + 5000;
                     SFX.undo();

@@ -304,7 +304,7 @@ const ACH: Record<string, string> = {
   two: 'Two things at once',
   infinite: 'Went infinite',
   stack5: 'Structural wreath',
-  stack10: 'Load-bearing wreath',
+  stack7: 'Load-bearing wreath',
   perfect: 'Perfect day',
   sugar: 'Sugar avoided',
   beach: 'Went to the beach',
@@ -326,7 +326,7 @@ const ACH_HOW: Record<string, string> = {
   two: 'two catches in ' + DOUBLE_WINDOW_MS + ' ms',
   infinite: 'storm count ' + STORM_X3,
   stack5: 'five wreaths on the head',
-  stack10: 'ten wreaths on the head',
+  stack7: 'seven wreaths on the head',
   perfect: PERFECT_DAY + ' XP in one run',
   sugar: 'let ' + NUM_WORDS[ACH_NEED.sugar] + ' sugars fall past',
   beach: 'die to the beach',
@@ -783,7 +783,7 @@ function landOnHead(): void {
   award(XP_WREATH, r.x + r.w * HEAD_CX, r.y - stackHeight() - 10, 'ON HEAD');
   unlock('literal');
   if (G.stack === 5) unlock('stack5');
-  if (G.stack === 10) unlock('stack10');
+  if (G.stack === 7) unlock('stack7');
 }
 /** Where a point sits across the head zone: -1 at its left edge, 0 under the centre of the stack, 1 at its right edge. */
 function stackOffset(cx: number, P: { x: number; w: number }): number {
@@ -1293,7 +1293,7 @@ function onButton(id: string): void {
     case 'achclose': achOpen = false; break;
     case 'restart': startRun(); break;
     case 'restore':
-      if (restoreArmed > performance.now()) { restoreArmed = 0; resetProgress(); }
+      if (restoreArmed > performance.now()) { restoreArmed = 0; resetProgress(); G.phase = 'title'; G.items = []; }   // and back to the title, like a fresh install
       else { restoreArmed = performance.now() + 5000; SFX.undo(); setStatus('Clears records and the photo. Click again.', 5); }
       break;
     case 'quit': SFX.click(); G.phase = 'title'; G.items = []; setStatus('Quit to where?', 4); break;
