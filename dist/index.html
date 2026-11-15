@@ -321,7 +321,6 @@
             bad: ['Sugar. Processed. Next.'],
             death: 'Sugar got you. It was, as described, sweet. You have died.' },
     };
-    const BORDER_DEATH = 'The wreath went around the portrait. The instructions said the head. Read them next time. You have died.';
     const BAD_KINDS = ['dasani', 'counterspell', 'beach', 'comforter', 'sugar'];
     // ============================================================================
     //  Achievements
@@ -1079,7 +1078,7 @@
         G.phase = 'dying';
         G.dyingT = 1.1;
         SFX.death();
-        G.deathMsg = G.cause === 'border' ? BORDER_DEATH : G.cause ? (KINDS[G.cause].death ?? '') : 'You have died.';
+        G.deathMsg = G.cause ? (KINDS[G.cause].death ?? '') : 'You have died.';
         if (G.cause === 'beach')
             unlock('beach');
         endRun();
@@ -1195,8 +1194,7 @@
         G.storm = 0;
         G.cause = cause;
         G.shakeFx = 0.35;
-        if (cause !== 'border')
-            SFX.bad();
+        SFX.bad();
         if (msg)
             banner(msg, 1.6);
         setStatus(G.undos > 0 ? 'Undo used. ' + G.undos + ' left.' : 'No undos left.', 3);
@@ -1207,7 +1205,8 @@
     function borderFail() {
         G.borderFx = 1;
         SFX.border();
-        loseUndo('border', ''); // no banner for a border; the status bar notes the undo
+        G.storm = 0;
+        G.shakeFx = 0.35; // a miss breaks the streak and rattles the frame, and that is all it costs
     }
     // ============================================================================
     //  Spawning

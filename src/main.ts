@@ -287,7 +287,6 @@ const KINDS: Record<Kind, KindInfo> = {
     bad: ['Sugar. Processed. Next.'],
     death: 'Sugar got you. It was, as described, sweet. You have died.' },
 };
-const BORDER_DEATH = 'The wreath went around the portrait. The instructions said the head. Read them next time. You have died.';
 const BAD_KINDS: Kind[] = ['dasani', 'counterspell', 'beach', 'comforter', 'sugar'];
 
 // ============================================================================
@@ -364,7 +363,7 @@ const G = {
   achQueue: [] as string[], achT: 0,
   borderFx: 0, infFx: 0, shakeFx: 0, dyingT: 0,   // infFx: the storm box blinks for a moment on going infinite
   lastCatchAt: -1e9, lastCatchXP: 0,
-  cause: '' as Kind | 'border' | '',
+  cause: '' as Kind | '',
   deathMsg: '',
   runAch: [] as string[],
   paused: false, finishTime: 0,
@@ -763,7 +762,7 @@ function endRun(): void {
 function die(): void {
   G.phase = 'dying'; G.dyingT = 1.1;
   SFX.death();
-  G.deathMsg = G.cause === 'border' ? BORDER_DEATH : G.cause ? (KINDS[G.cause].death ?? '') : 'You have died.';
+  G.deathMsg = G.cause ? (KINDS[G.cause].death ?? '') : 'You have died.';
   if (G.cause === 'beach') unlock('beach');
   endRun();
 }
@@ -845,9 +844,9 @@ function bounceOff(it: Item, dir: number): void {
   it.vx = dir * 260; it.vy = -Math.max(120, it.vy * 0.5);
   SFX.bounce();   // no words for a miss; the hop says it
 }
-function loseUndo(cause: Kind | 'border', msg: string): void {
+function loseUndo(cause: Kind, msg: string): void {
   G.undos--; G.storm = 0; G.cause = cause; G.shakeFx = 0.35;
-  if (cause !== 'border') SFX.bad();
+  SFX.bad();
   if (msg) banner(msg, 1.6);
   setStatus(G.undos > 0 ? 'Undo used. ' + G.undos + ' left.' : 'No undos left.', 3);
   if (G.undos <= 0) die();
@@ -856,7 +855,7 @@ function catchBad(it: Item): void { loseUndo(it.kind, pick(KINDS[it.kind].bad!))
 function borderFail(): void {
   G.borderFx = 1;
   SFX.border();
-  loseUndo('border', '');   // no banner for a border; the status bar notes the undo
+  G.storm = 0; G.shakeFx = 0.35;   // a miss breaks the streak and rattles the frame, and that is all it costs
 }
 
 // ============================================================================
