@@ -55,6 +55,10 @@ import works.
 - Mouse moves the portrait (the cursor sits over the head). `←`/`→` or `A`/`D` also
   work. `P` or `Esc` pauses. `Space`/`Enter` starts and restarts.
 - Catch: wreaths (on the head), S.Pellegrino, Magic cards, black hearts, steak.
+- A wreath has to line up with the stack. While one is falling, two selection
+  handles above the stack mark the landing zone and turn solid once it is lined
+  up. A wreath that comes down near the edge bounces off and falls clear; that
+  costs nothing.
 - Avoid: Dasani, Counterspell, the beach, polyester comforters, Beard Man.
   Bad things wobble as they fall.
 - Score is XP. 1 minute = 1 XP. 1,080 XP is a perfect day and ends the run with
@@ -64,7 +68,8 @@ import works.
   A bad catch resets it.
 - You have three undos. A bad catch or a border wreath spends one. The first border
   wreath of a run is free. Zero undos is a Sierra-style death.
-- Ctrl+Z, the palette, the menus and the Restore button all do something.
+- Ctrl+Z, the palette, the menus, some of the tools and the Restore button all do
+  something. The other tools do nothing, on purpose.
 - Best XP, best perfect-day time, the sound setting and the set of achievements
   ever earned are kept in `localStorage` only.
 
@@ -94,14 +99,21 @@ All pacing lives in the constants block near the top of `src/main.ts`:
 | --- | --- | --- |
 | `RAMP_SECONDS` | seconds until the difficulty curve maxes out | 170 |
 | `SPAWN_START` / `SPAWN_END` | seconds between spawns, start and end of ramp | 1.25 / 0.38 |
+| `WARMUP_HOLD` / `WARMUP_END` | seconds: spawns stay sparse until the hold ends, then ease to normal | 10 / 30 |
+| `WARMUP_SPACING` | multiplier on the time between spawns during the hold | 2 |
 | `FALL_START` / `FALL_END` | fall speed in px/s | 140 / 360 |
 | `BAD_START` / `BAD_END` | share of spawns that are bad | 0.14 / 0.30 |
 | `PAIR_START` / `PAIR_END` | share of spawns that arrive as a pair | 0.05 / 0.45 |
-| `XP_GOOD` / `XP_STEAK` / `XP_WREATH` | base XP per catch | 3 / 4 / 7 |
+| `XP_GOOD` / `XP_STEAK` / `XP_WREATH` | base XP per catch | 5 / 6 / 10 |
 | `STORM_X2` / `STORM_X3` | storm counts for the ×2 and ×3 multipliers | 20 / 40 |
 | `BAD_INSET` | bad things must hit the body, this many px inside the selection edge | 26 |
 | `CATCH_BAND` | things can only land within this band below the portrait's top | 56 |
+| `PERFECT_ZONE` | share of the head zone, out from the stack's centre, where a wreath lands | 0.8 |
+| `EDGE_SLOP` | how far past the head zone a wreath still bounces off instead of becoming a border | 0.3 |
+| `WREATH_SHARE` | share of good spawns that are wreaths | 0.15 |
 
+The first ten seconds spawn at half the usual rate, easing to the normal rate by
+thirty seconds, so the player has time to settle in.
 The difficulty curve is `(t / RAMP_SECONDS) ^ 1.4`, so the first minute is calm
 and the last minute is not.
 

@@ -12,7 +12,7 @@
 //  The font covers plain ASCII (letters, digits, common punctuation).
 // ---------------------------------------------------------------------------
 const PERSONAL_NOTE =
-  'Merry Chrithmith. The wreath was in the right place the whole time. Reading this counts as two things at once.';
+  'Merry Chrithmith.\nThe wreath was in the right place the whole time.\nReading this counts as two things at once.';
 const ART_CREDIT = 'Drawing by Althea';
 // ---------------------------------------------------------------------------
 
@@ -21,19 +21,25 @@ const PERFECT_DAY = 1080;        // XP for a perfect day. 1 minute = 1 XP.
 const XP_PER_LEVEL = 108;        // ten levels to a perfect day
 const START_UNDOS = 3;           // Paint only ever had three
 const RAMP_SECONDS = 170;        // seconds until difficulty maxes out
-const XP_GOOD = 3;
-const XP_STEAK = 4;
-const XP_WREATH = 7;
+const XP_GOOD = 5;
+const XP_STEAK = 6;
+const XP_WREATH = 10;
 const DOUBLE_WINDOW_MS = 140;    // two catches this close together = two things at once
+const BANNER_LINGER = 1;         // extra seconds every pop-up banner and achievement toast stays on screen
+const LAND_FX = 0.45;            // seconds the portrait's selection flashes after a wreath lands
+const PERFECT_ZONE = 0.8;        // share of the head zone, out from the stack's centre, where a wreath lands; beyond it the wreath bounces
+const EDGE_SLOP = 0.3;           // how far past the head zone a wreath still bounces off instead of falling on to a border
 const STORM_X2 = 20;             // storm count for x2
 const STORM_X3 = 40;             // storm count for x3 ("infinite")
 const SPAWN_START = 1.25, SPAWN_END = 0.38;     // seconds between spawns
+const WARMUP_HOLD = 10, WARMUP_END = 30;        // seconds: spawns stay sparse until the hold ends, then ease to normal
+const WARMUP_SPACING = 2;                        // multiplier on the time between spawns during the hold
 const FALL_START = 140, FALL_END = 360;         // px per second
 const BAD_START = 0.14, BAD_END = 0.30;         // share of spawns that are bad
 const BAD_INSET = 26;                            // bad items only count if they hit the body, not the selection edge
 const CATCH_BAND = 56;                           // px below the portrait's top in which a falling thing can land on it
 const PAIR_START = 0.05, PAIR_END = 0.45;       // share of spawns that come as a pair
-const WREATH_SHARE = 0.20;                      // share of non-bad spawns that are wreaths
+const WREATH_SHARE = 0.15;                      // share of non-bad spawns that are wreaths
 const MOUSE_SPEED = 1700, KEY_SPEED = 620;      // px per second
 
 // ----- Layout (all in logical pixels; the canvas is scaled with CSS) --------
@@ -56,6 +62,16 @@ const SHOULDER = 0.715;                             // where the shirt starts, f
 
 // ----- Palette: everything that is not her drawing ---------------------------
 const BLACK = '#000000', DARK = '#808080', LIGHT = '#c0c0c0', WHITE = '#ffffff', MID = '#404040';
+// Toolbox buttons that respond when clicked (index = position, left to right, top to bottom). The rest do nothing at all.
+const TOOL_MSGS: Record<number, string> = {
+  1: 'The Select tool is in use.',
+  2: 'The eraser is not an undo. You have three.',
+  3: 'The bucket is empty.',
+  4: 'Picked a colour: grey. As expected.',
+  5: 'Zoom: 100%. Things are the size they are.',
+  8: 'The airbrush hissed. Nothing came out.',
+  14: 'An ellipse is a wreath that did nothing.',
+};
 
 type Phase = 'title' | 'howto' | 'playing' | 'dying' | 'over' | 'won';
 type Kind = 'wreath' | 'pellegrino' | 'card' | 'heart' | 'steak' | 'dasani' | 'counterspell' | 'beach' | 'comforter' | 'beardman';
@@ -185,8 +201,11 @@ function wreathRows(): string[] {
       const edge = !(body[y - 1]?.[x]) || !(body[y + 1]?.[x]) || !body[y][x - 1] || !body[y][x + 1];
       if (edge) { r += '#'; continue; }
       const dx = x + 0.5 - cx, dy = y + 0.5 - cy, a = Math.atan2(dy, dx), d = Math.hypot(dx, dy);
-      const berry = Math.abs(((a * 3 / Math.PI) % 1 + 1) % 1 - 0.5) < 0.12 && Math.abs(d - 5.9) < 0.6;
-      r += berry ? 'w' : (((x * 3 + y * 5) % 7 === 0) ? 'd' : 'g');
+      const fr = ((a * 3 / Math.PI) % 1 + 1) % 1;                         // 0..1 between berry slots; 0.5 is a berry
+      const berry = Math.abs(fr - 0.5) < 0.12 && Math.abs(d - 5.9) < 0.6;
+      const halo = Math.abs(fr - 0.5) < 0.17 && Math.abs(d - 5.9) < 1.0;  // a light sheen around each berry
+      const fleck = (x * 5 + y * 3) % 11 === 0;                            // frost on the leaves
+      r += berry ? 'w' : (halo || fleck) ? 'l' : (((x * 3 + y * 5) % 7 === 0) ? 'd' : 'g');
     }
     rows.push(r);
   }
@@ -302,8 +321,9 @@ let bestTime = Number(load(STORE_TIME) ?? 0) || 0;
 // ============================================================================
 //  State
 // ============================================================================
-interface Item { kind: Kind; x: number; y: number; w: number; h: number; vy: number; wob: number; passedHead: boolean; }
+interface Item { kind: Kind; x: number; y: number; w: number; h: number; vy: number; wob: number; passedHead: boolean; vx?: number; bounced?: boolean; }
 interface Floater { text: string; x: number; y: number; t: number; life: number; scale: number; }
+interface Flyer { text: string; x0: number; y0: number; x1: number; y1: number; t: number; life: number; }   // XP on its way to the counter
 interface Btn { id: string; x: number; y: number; w: number; h: number; label: string; }
 
 const G = {
@@ -313,6 +333,8 @@ const G = {
   spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0,
   px: 0, targetX: 0,
   floaters: [] as Floater[],
+  flyers: [] as Flyer[], xpFlash: 0, landFx: 0,
+  toolPress: -1, toolPressUntil: 0,   // a toolbox button held down for a moment after a click
   banner: null as { text: string; t: number; life: number } | null,
   achQueue: [] as string[], achT: 0,
   borderFx: 0, invertFx: 0, shakeFx: 0, dyingT: 0,
@@ -348,13 +370,21 @@ const pick = <T,>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)];
 const pad4 = (n: number) => String(Math.floor(n)).padStart(4, '0');
 function fmtTime(s: number): string { const m = Math.floor(s / 60), r = Math.floor(s % 60); return m + ':' + String(r).padStart(2, '0'); }
 function difficulty(): number { return Math.pow(clamp(G.t / RAMP_SECONDS, 0, 1), 1.4); }
+/** Multiplier on the time between spawns: WARMUP_SPACING for the first WARMUP_HOLD seconds, easing to 1 by WARMUP_END. */
+function warmup(): number {
+  if (G.t <= WARMUP_HOLD) return WARMUP_SPACING;
+  const k = clamp((G.t - WARMUP_HOLD) / (WARMUP_END - WARMUP_HOLD), 0, 1);
+  return lerp(WARMUP_SPACING, 1, k * k * (3 - 2 * k));
+}
 function multiplier(): number { return G.storm >= STORM_X3 ? 3 : G.storm >= STORM_X2 ? 2 : 1; }
 function portraitRect() { return { x: Math.round(G.px), y: PLAY_H - portrait.height - 6, w: portrait.width, h: portrait.height }; }
 function maxPX(): number { return PLAY_W - portrait.width; }
 function stackHeight(): number { return Math.min(G.stack, 14) * 12; }
 function setStatus(s: string, secs = 3): void { G.status = s; G.statusT = secs; }
-function banner(s: string, life = 1.5): void { G.banner = { text: s, t: 0, life }; }
+function banner(s: string, life = 1.5): void { G.banner = { text: s, t: 0, life: life + BANNER_LINGER }; }
 function floater(s: string, x: number, y: number, scale = 2): void { G.floaters.push({ text: s, x, y, t: 0, life: 0.9, scale }); }
+const XP_TARGET_X = 72, XP_TARGET_Y = 17;   // centre of the XP digits in the HUD
+function flyer(s: string, x: number, y: number): void { G.flyers.push({ text: s, x0: x, y0: y, x1: XP_TARGET_X, y1: XP_TARGET_Y, t: 0, life: 0.55 }); }
 function unlock(id: string): void {
   if (G.runAch.includes(id)) return;
   G.runAch.push(id);
@@ -451,11 +481,12 @@ function buildChrome(): void {
   for (let i = 0; i < 16; i++) {
     const col = i % 2, row = Math.floor(i / 2);
     const x = tx + 2 + col * 26, y = ty + 2 + row * 26;
-    const pressed = i === 1; // Select is in use. Obviously.
-    g.fillStyle = pressed ? WHITE : LIGHT; g.fillRect(x, y, 25, 25);
-    bevel(g, x, y, 25, 25, !pressed, 1);
-    if (pressed) { g.fillStyle = LIGHT; for (let yy = y + 1; yy < y + 24; yy++) for (let xx = x + 1 + (yy & 1); xx < x + 24; xx += 2) g.fillRect(xx, yy, 1, 1); }
-    drawToolIcon(g, i, x + 4 + (pressed ? 1 : 0), y + 4 + (pressed ? 1 : 0));
+    const active = i === 1; // Select is in use. Obviously.
+    const down = active || (i === G.toolPress && performance.now() < G.toolPressUntil);
+    g.fillStyle = active ? WHITE : LIGHT; g.fillRect(x, y, 25, 25);
+    bevel(g, x, y, 25, 25, !down, 1);
+    if (active) { g.fillStyle = LIGHT; for (let yy = y + 1; yy < y + 24; yy++) for (let xx = x + 1 + (yy & 1); xx < x + 24; xx += 2) g.fillRect(xx, yy, 1, 1); }
+    drawToolIcon(g, i, x + 4 + (down ? 1 : 0), y + 4 + (down ? 1 : 0));
   }
   // tool options box: opaque / transparent selection
   const oy = ty + 2 + 8 * 26 + 6;
@@ -570,6 +601,7 @@ const SFX = {
   blip: (storm: number) => sfx('square', 660 * Math.pow(2, Math.min(storm, 24) / 24), 0.07, 0.16),   // rises an octave over 24 storm
   double: () => { sfx('square', 988, 0.06, 0.16); sfx('square', 1480, 0.1, 0.16, 0.06); },
   wreath: () => { sfx('square', 880, 0.08, 0.16); sfx('square', 1320, 0.14, 0.16, 0.08); },
+  bounce: () => { sfx('square', 520, 0.05, 0.14); sfx('square', 390, 0.09, 0.14, 0.05); },
   bad: () => { sfx('sawtooth', 120, 0.28, 0.25, 0, 60); if (ac) hiss(ac.currentTime, 0.14, 0.18, sfxGain, 1800); },
   border: () => sfx('sawtooth', 330, 0.45, 0.2, 0, 90),
   ach: () => { sfx('triangle', 880, 0.12, 0.2); sfx('triangle', 1108, 0.12, 0.2, 0.08); sfx('triangle', 1318, 0.22, 0.2, 0.16); },
@@ -635,7 +667,7 @@ function startRun(): void {
   G.phase = 'playing';
   G.t = 0; G.xp = 0; G.storm = 0; G.undos = START_UNDOS; G.stack = 0; G.level = 0;
   G.items = []; G.spawnTimer = 0.7; G.spawnCount = 0; G.dodged = 0; G.caught = 0; G.wreathsOnHead = 0;
-  G.floaters = []; G.banner = null; G.achQueue = []; G.achT = 0;
+  G.floaters = []; G.flyers = []; G.xpFlash = 0; G.landFx = 0; G.banner = null; G.achQueue = []; G.achT = 0;
   G.borderFx = 0; G.invertFx = 0; G.shakeFx = 0; G.dyingT = 0;
   G.lastCatchAt = -1e9; G.lastCatchXP = 0; G.cause = ''; G.deathMsg = '';
   G.runAch = []; G.paused = false; G.finishTime = 0;
@@ -675,6 +707,7 @@ function award(base: number, x: number, y: number, label: string): void {
   const before = G.xp;
   G.xp = Math.min(PERFECT_DAY, G.xp + gain);
   floater(tag, x, y);
+  flyer('+' + gain, x, y);
   const lvl = Math.floor(G.xp / XP_PER_LEVEL);
   if (lvl > G.level && G.xp < PERFECT_DAY) {
     G.level = lvl;
@@ -702,6 +735,7 @@ function catchGood(it: Item): void {
 }
 function landOnHead(): void {
   G.stack++; G.wreathsOnHead++; G.caught++;
+  G.landFx = LAND_FX;
   bumpStorm();
   SFX.wreath();
   const r = portraitRect();
@@ -709,6 +743,19 @@ function landOnHead(): void {
   unlock('literal');
   if (G.stack === 5) unlock('stack5');
   if (G.stack === 10) unlock('stack10');
+}
+/** Where a point sits across the head zone: -1 at its left edge, 0 under the centre of the stack, 1 at its right edge. */
+function stackOffset(cx: number, P: { x: number; w: number }): number {
+  const headL = P.x + HEAD_L * P.w, headR = P.x + HEAD_R * P.w;
+  return (cx - (headL + headR) / 2) / ((headR - headL) / 2);
+}
+function bounceOff(it: Item, dir: number): void {
+  // Near the stack but not on it: the wreath hops away and falls clear. No border, no undo.
+  it.bounced = true; it.passedHead = true;
+  it.vx = dir * 260; it.vy = -Math.max(120, it.vy * 0.5);
+  SFX.bounce();
+  floater('EDGE', it.x + it.w / 2, it.y - 6);
+  setStatus('Edge. Line the stack up under it.', 2.5);
 }
 function loseUndo(cause: Kind | 'border', msg: string): void {
   G.undos--; G.storm = 0; G.cause = cause; G.shakeFx = 0.35;
@@ -768,7 +815,12 @@ function update(dt: number): void {
   if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.life) G.banner = null; }
   for (const f of G.floaters) f.t += dt;
   G.floaters = G.floaters.filter(f => f.t < f.life);
-  if (G.achQueue.length) { G.achT += dt; if (G.achT > 2.6) { G.achQueue.shift(); G.achT = 0; } }
+  for (const f of G.flyers) f.t += dt;
+  if (G.flyers.some(f => f.t >= f.life)) G.xpFlash = 0.14;   // the XP counter blinks as the points arrive
+  G.flyers = G.flyers.filter(f => f.t < f.life);
+  if (G.xpFlash > 0) G.xpFlash = Math.max(0, G.xpFlash - dt);
+  if (G.landFx > 0) G.landFx = Math.max(0, G.landFx - dt);
+  if (G.achQueue.length) { G.achT += dt; if (G.achT > 2.6 + BANNER_LINGER) { G.achQueue.shift(); G.achT = 0; } }
   if (G.achQueue.length && G.achQueue[0] !== lastAchSound) { lastAchSound = G.achQueue[0]; SFX.ach(); }
   if (G.borderFx > 0) G.borderFx = Math.max(0, G.borderFx - dt / 0.9);
   if (G.invertFx > 0) G.invertFx = Math.max(0, G.invertFx - dt);
@@ -791,7 +843,7 @@ function update(dt: number): void {
   }
   // spawning
   G.spawnTimer -= dt;
-  if (G.spawnTimer <= 0) { spawn(); G.spawnTimer = lerp(SPAWN_START, SPAWN_END, difficulty()) * (0.8 + Math.random() * 0.4); }
+  if (G.spawnTimer <= 0) { spawn(); G.spawnTimer = lerp(SPAWN_START, SPAWN_END, difficulty()) * warmup() * (0.8 + Math.random() * 0.4); }
   // items
   const P = portraitRect();
   const headLine = P.y - stackHeight();
@@ -799,14 +851,17 @@ function update(dt: number): void {
   for (const it of G.items) {
     it.y += it.vy * dt;
     it.wob += dt;
+    if (it.bounced) { it.x += (it.vx ?? 0) * dt; it.vy += 900 * dt; }   // a bounced wreath arcs away under gravity
     const cx = it.x + it.w / 2, bottom = it.y + it.h;
     let done = false;
     if (it.kind === 'wreath') {
       if (!it.passedHead && bottom >= headLine) {
-        if (bottom <= headLine + 42 && cx >= P.x + HEAD_L * P.w && cx <= P.x + HEAD_R * P.w) { landOnHead(); done = true; }
+        const off = stackOffset(cx, P);   // -1..1 across the head zone, 0 is the centre of the stack
+        if (bottom <= headLine + 42 && Math.abs(off) <= PERFECT_ZONE) { landOnHead(); done = true; }
+        else if (bottom <= headLine + 42 && Math.abs(off) <= 1 + EDGE_SLOP) bounceOff(it, off < 0 ? -1 : 1);
         else if (bottom > headLine + 42) it.passedHead = true;
       }
-      if (!done && bottom >= P.y + SHOULDER * P.h && cx >= P.x + 10 && cx <= P.x + P.w - 10 && it.y < P.y + P.h) { borderFail(); done = true; }
+      if (!done && !it.bounced && bottom >= P.y + SHOULDER * P.h && cx >= P.x + 10 && cx <= P.x + P.w - 10 && it.y < P.y + P.h) { borderFail(); done = true; }
     } else if (!it.passedHead && bottom >= P.y) {
       // Things land on the portrait, or they don't. Once past the top band they are simply falling beside it.
       const ix = it.x + 5, iw = it.w - 10;
@@ -887,10 +942,31 @@ function button(g: CanvasRenderingContext2D, id: string, label: string, x: numbe
   g.fillStyle = BLACK; g.fillRect(x, y, w, 2); g.fillRect(x, y + h - 2, w, 2); g.fillRect(x, y, 2, h); g.fillRect(x + w - 2, y, 2, h);
   text(g, label, x + w / 2, y + (h - 14) / 2, 2, hot ? WHITE : BLACK, 'center');
 }
+function hollowRect(g: CanvasRenderingContext2D, x: number, y: number, w: number, h: number, t: number): void {
+  g.fillRect(x, y, w, t); g.fillRect(x, y + h - t, w, t); g.fillRect(x, y, t, h); g.fillRect(x + w - t, y, t, h);
+}
+function sparkle(g: CanvasRenderingContext2D, x: number, y: number, t: number, sx = 1, sy = 1, glints = 2, lit = 0.28): void {
+  // Glints hop from berry to berry on a wreath drawn at (x, y); each is lit for the `lit` share of its cycle.
+  const cx = 9, cy = 9, rad = 5.9, half = Math.floor(SPR / 2);   // ring geometry must match wreathRows()
+  for (let k = 0; k < glints; k++) {
+    const ph = t * 0.9 + k / glints, cyc = ph % 1;
+    if (cyc > lit) continue;
+    const slot = (Math.floor(ph) * 2 + k * 2) % 6;
+    const a = (slot + 0.5) * Math.PI / 3;
+    const px = Math.round(x + (cx + Math.cos(a) * rad) * SPR * sx), py = Math.round(y + (cy + Math.sin(a) * rad) * SPR * sy);
+    const arm = cyc < 0.12 ? 2 : 1;
+    g.fillStyle = LIGHT;
+    g.fillRect(px - half - arm * SPR, py - half, (2 * arm + 1) * SPR, SPR);
+    g.fillRect(px - half, py - half - arm * SPR, SPR, (2 * arm + 1) * SPR);
+    g.fillStyle = WHITE; g.fillRect(px - half, py - half, SPR, SPR);
+  }
+}
 function drawItem(g: CanvasRenderingContext2D, it: Item): void {
   const bad = !KINDS[it.kind].good;
   const dx = bad ? Math.round(Math.sin(it.wob * 28) * 3) : 0;
-  g.drawImage(SPRITES[it.kind], Math.round(it.x + dx), Math.round(it.y));
+  const x = Math.round(it.x + dx), y = Math.round(it.y);
+  g.drawImage(SPRITES[it.kind], x, y);
+  if (it.kind === 'wreath') sparkle(g, x, y, it.wob, 1, 1, 3, 0.4);   // falling wreaths sparkle a little more than the stack
 }
 function drawPortrait(g: CanvasRenderingContext2D, tNow: number): void {
   const P = portraitRect();
@@ -899,9 +975,33 @@ function drawPortrait(g: CanvasRenderingContext2D, tNow: number): void {
   g.drawImage(portrait, x, y);
   // wreaths that landed, stacked, squashed into perspective
   const n = Math.min(G.stack, 14), ww = Math.round(P.w * 0.56), wh = 34;
-  for (let i = 0; i < n; i++) g.drawImage(SPRITES.wreath, Math.round(x + P.w * HEAD_CX - ww / 2), y - 16 - i * 12, ww, wh);
+  const wx = Math.round(x + P.w * HEAD_CX - ww / 2);
+  for (let i = 0; i < n; i++) g.drawImage(SPRITES.wreath, wx, y - 16 - i * 12, ww, wh);
+  if (n > 0) sparkle(g, wx, y - 16 - (n - 1) * 12, tNow / 1000, ww / SPRITES.wreath.width, wh / SPRITES.wreath.height);
   if (G.stack > 14) textHalo(g, '×' + G.stack, x + P.w * HEAD_CX, y - 16 - 14 * 12 - 20, 2, BLACK, 'center');
   if (G.phase === 'playing' || G.phase === 'won') marquee(g, x - 2, y - 2, P.w + 4, P.h + 4, Math.floor(tNow / 90));
+  if (G.phase === 'playing') {
+    // While a wreath is coming down, two selection handles above the stack mark where it has to land.
+    // They are hollow until the wreath is lined up with the stack, then solid.
+    const incoming = G.items.find(i => i.kind === 'wreath' && !i.bounced && !i.passedHead);
+    if (incoming) {
+      const half = (HEAD_R - HEAD_L) / 2 * P.w * PERFECT_ZONE, mid = x + (HEAD_L + HEAD_R) / 2 * P.w;
+      const lined = Math.abs(stackOffset(incoming.x + incoming.w / 2, P)) <= PERFECT_ZONE;
+      const hy = y - stackHeight() - 8;
+      for (const hx of [mid - half, mid + half]) {
+        g.fillStyle = BLACK; g.fillRect(Math.round(hx) - 4, hy - 4, 8, 8);
+        if (!lined) { g.fillStyle = WHITE; g.fillRect(Math.round(hx) - 2, hy - 2, 4, 4); }
+      }
+    }
+  }
+  if (G.landFx > 0) {
+    // a wreath just landed: a quick inversion, then the selection border blinks
+    if (G.landFx > LAND_FX - 0.07) { g.globalCompositeOperation = 'difference'; g.fillStyle = WHITE; g.fillRect(x, y, P.w, P.h); g.globalCompositeOperation = 'source-over'; }
+    if (Math.floor(G.landFx * 20) & 1) {
+      g.fillStyle = WHITE; hollowRect(g, x - 5, y - 5, P.w + 10, P.h + 10, 3);
+      g.fillStyle = BLACK; hollowRect(g, x - 8, y - 8, P.w + 16, P.h + 16, 3);
+    }
+  }
   if (G.borderFx > 0) {
     const k = 1 - G.borderFx, grow = 1 + k * 0.08;
     const bw = (P.w + 40) * grow, bh = (P.h + 40) * grow;
@@ -909,7 +1009,9 @@ function drawPortrait(g: CanvasRenderingContext2D, tNow: number): void {
   }
 }
 function drawHUD(g: CanvasRenderingContext2D): void {
-  text(g, 'XP ' + pad4(G.xp) + '/' + PERFECT_DAY, 12, 10, 2, BLACK);
+  const xpStr = 'XP ' + pad4(G.xp) + '/' + PERFECT_DAY;
+  if (G.xpFlash > 0) { g.fillStyle = BLACK; g.fillRect(8, 6, textW(xpStr, 2) + 8, 22); text(g, xpStr, 12, 10, 2, WHITE); }
+  else text(g, xpStr, 12, 10, 2, BLACK);
   text(g, 'LEVEL ' + G.level, 12, 30, 2, DARK);
   // XP bar
   g.fillStyle = BLACK; g.fillRect(12, 48, 162, 8);
@@ -927,6 +1029,14 @@ function drawFloaters(g: CanvasRenderingContext2D): void {
     if (k > 0.7 && (Math.floor(f.t * 30) & 1)) continue; // flicker out
     textHalo(g, f.text, clamp(f.x, 60, PLAY_W - 60), y, f.scale, BLACK, 'center');
   }
+  for (const f of G.flyers) {
+    // a small +N on a quadratic arc from the catch to the XP counter, eased so it leaves slowly and arrives quickly
+    const k = f.t / f.life, e = k * k;
+    const mx = (f.x0 + f.x1) / 2, my = Math.min(f.y0, f.y1) - 70;
+    const x = (1 - e) * (1 - e) * f.x0 + 2 * (1 - e) * e * mx + e * e * f.x1;
+    const y = (1 - e) * (1 - e) * f.y0 + 2 * (1 - e) * e * my + e * e * f.y1;
+    textHalo(g, f.text, x, y, 2, BLACK, 'center');
+  }
 }
 function drawBanner(g: CanvasRenderingContext2D): void {
   if (!G.banner) return;
@@ -941,7 +1051,7 @@ function drawAchievement(g: CanvasRenderingContext2D): void {
   if (!G.achQueue.length) return;
   const name = ACH[G.achQueue[0]];
   const t = G.achT;
-  const slide = t < 0.25 ? 1 - t / 0.25 : t > 2.3 ? (t - 2.3) / 0.3 : 0;
+  const slide = t < 0.25 ? 1 - t / 0.25 : t > 2.3 + BANNER_LINGER ? (t - 2.3 - BANNER_LINGER) / 0.3 : 0;
   const w = Math.max(textW('ACHIEVEMENT UNLOCKED', 2), textW(name, 2)) + 76, h = 52;
   const x = Math.round(PLAY_W / 2 - w / 2), y = Math.round(64 - slide * (h + 70));
   g.fillStyle = BLACK; g.fillRect(x, y, w, h);
@@ -956,7 +1066,7 @@ function drawAchievement(g: CanvasRenderingContext2D): void {
 }
 function drawEndDialog(g: CanvasRenderingContext2D): void {
   const won = G.phase === 'won';
-  const w = 660, x = (PLAY_W - w) / 2;
+  const w = 680, x = (PLAY_W - w) / 2;
   // measure first, so the box fits its contents
   const deathLines = won ? [] : wrap(G.deathMsg, w - 60, 2);
   const achList = G.runAch.slice(0, 11);
@@ -1017,7 +1127,7 @@ function drawHowto(g: CanvasRenderingContext2D): void {
   cy = top;
   legend('AVOID', x + w / 2 + 30, ['dasani', 'counterspell', 'beach', 'comforter', 'beardman']);
   cy += 6;
-  for (const l of ['Mouse, ← →, or A and D. P pauses. M mutes.', 'One minute is one XP. ' + PERFECT_DAY + ' XP is a perfect day.', 'Two things at once is double XP.', 'You have three undos. Paint only ever had three.']) { text(g, l, PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 18; }
+  for (const l of ['Mouse, ← →, or A and D. P pauses. M mutes.', 'One minute is one XP.', PERFECT_DAY + ' XP is a perfect day.', 'Two things at once is double XP.']) { text(g, l, PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 18; }
   button(g, 'begin', 'Begin', PLAY_W / 2 - 75, y + h - 50, 150, 30);
 }
 function drawTitle(g: CanvasRenderingContext2D): void {
@@ -1038,7 +1148,7 @@ function render(tNow: number): void {
   text(ctx, soundOn ? 'Sound' : 'Sound: off', soundMenu.x + 6, FRAME + TITLE_H + 4, 2, soundOn ? BLACK : DARK);
   // status bar text
   const sy = STATUS_Y + 6;
-  const defaultStatus = G.phase === 'playing' ? 'Wreaths go on the head.' : 'For Help, click Help Topics on the Help Menu.';
+  const defaultStatus = G.phase === 'playing' ? 'Wreaths go on the head.' : 'For Help, click Help.';
   ctx.save();
   ctx.beginPath(); ctx.rect(FRAME + 4, sy - 2, WIN_W - 310 - FRAME, STATUS_H - 6); ctx.clip();   // each pane clips its own text
   text(ctx, G.statusT > 0 ? G.status : defaultStatus, FRAME + 8, sy, 2, BLACK);
@@ -1117,7 +1227,16 @@ function chromeClick(x: number, y: number): boolean {
     for (const p of paletteRects) if (x >= p.x && x < p.x + 16 && y >= p.y && y < p.y + 16) { SFX.click(); unlock('palette'); setStatus('They are all grey.', 4); return true; }
     if (x < FRAME + 40) { setStatus('Foreground: black. Background: white. Correct.', 4); return true; }
   }
-  if (x < PLAY_X - PAD && y > FRAME + TITLE_H + MENU_H && y < PALETTE_Y) { setStatus('The Select tool is in use.', 3); return true; }
+  if (x < PLAY_X - PAD && y > FRAME + TITLE_H + MENU_H && y < PALETTE_Y) {
+    // the toolbox: a 2 x 8 grid of 25 px buttons on a 26 px pitch (see the toolbar drawing)
+    const tx = FRAME + 4, ty = FRAME + TITLE_H + MENU_H + 4;
+    const col = Math.floor((x - tx) / 26), row = Math.floor((y - ty) / 26);
+    if (col >= 0 && col < 2 && row >= 0 && row < 8 && (x - tx) % 26 < 25 && (y - ty) % 26 < 25) {
+      const i = row * 2 + col, msg = TOOL_MSGS[i];
+      if (msg) { G.toolPress = i; G.toolPressUntil = performance.now() + 160; SFX.click(); setStatus(msg, 4); }
+    }
+    return true;   // every other tool, and the options box, does nothing. No movement, no message.
+  }
   return false;
 }
 canvas.addEventListener('mousemove', e => {
