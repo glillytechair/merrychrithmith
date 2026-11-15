@@ -307,6 +307,7 @@ const ACH: Record<string, string> = {
   stack10: 'Load-bearing wreath',
   perfect: 'Perfect day',
   sugar: 'Sugar avoided',
+  beach: 'Went to the beach',
   rare: 'Pulled a rare',
   palette: 'Noticed the palette',
 };
@@ -328,6 +329,7 @@ const ACH_HOW: Record<string, string> = {
   stack10: 'ten wreaths on the head',
   perfect: PERFECT_DAY + ' XP in one run',
   sugar: 'let ' + NUM_WORDS[ACH_NEED.sugar] + ' sugars fall past',
+  beach: 'die to the beach',
   rare: 'catch a gold-bordered card',
   palette: 'click a palette color',
 };
@@ -716,6 +718,7 @@ function die(): void {
   G.phase = 'dying'; G.dyingT = 1.1;
   SFX.death();
   G.deathMsg = G.cause === 'border' ? BORDER_DEATH : G.cause ? (KINDS[G.cause].death ?? '') : 'You have died.';
+  if (G.cause === 'beach') unlock('beach');
   endRun();
 }
 function win(): void {
@@ -1119,7 +1122,7 @@ function drawAchDialog(g: CanvasRenderingContext2D): void {
     cy += 20;
   }
   // the photo: an empty frame until every achievement has been earned
-  const ph = 170, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 206;
+  const ph = 150, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 182;
   const px = Math.round(PLAY_W / 2 - pw / 2), py = cy + 12;
   g.fillStyle = BLACK; g.fillRect(px - 2, py - 2, pw + 4, ph + 4);
   if (everAch.size >= ACH_TOTAL && photo) {
