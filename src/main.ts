@@ -287,12 +287,7 @@ const KINDS: Record<Kind, KindInfo> = {
     bad: ['Sugar. Processed. Next.'],
     death: 'Sugar got you. It was, as described, sweet. You have died.' },
 };
-const BORDER_MSGS = [
-  'Wreath around the portrait. A border. Wrong.',
-  'That is what the viewer meant. That is the problem.',
-  'A border. Technically requested. Incorrect.',
-];
-const BORDER_DEATH = 'The viewer got his border. You got this screen. Restore? There is nothing to restore.';
+const BORDER_DEATH = 'The wreath went around the portrait. The instructions said the head. Read them next time. You have died.';
 const BAD_KINDS: Kind[] = ['dasani', 'counterspell', 'beach', 'comforter', 'sugar'];
 
 // ============================================================================
@@ -853,7 +848,7 @@ function bounceOff(it: Item, dir: number): void {
 function loseUndo(cause: Kind | 'border', msg: string): void {
   G.undos--; G.storm = 0; G.cause = cause; G.shakeFx = 0.35;
   if (cause !== 'border') SFX.bad();
-  banner(msg, 1.6);
+  if (msg) banner(msg, 1.6);
   setStatus(G.undos > 0 ? 'Undo used. ' + G.undos + ' left.' : 'No undos left.', 3);
   if (G.undos <= 0) die();
 }
@@ -861,7 +856,7 @@ function catchBad(it: Item): void { loseUndo(it.kind, pick(KINDS[it.kind].bad!))
 function borderFail(): void {
   G.borderFx = 1;
   SFX.border();
-  loseUndo('border', pick(BORDER_MSGS));
+  loseUndo('border', '');   // no banner for a border; the status bar notes the undo
 }
 
 // ============================================================================
