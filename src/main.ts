@@ -738,6 +738,7 @@ function diatonic(n: number, steps: number): number {
   const j = i + steps, oct = Math.floor(j / 7);
   return n - rel + SCALE[((j % 7) + 7) % 7] + oct * 12;
 }
+const BASS = 0.4;                          // the bass sits well under the bells
 const music = { mode: 'none' as 'none' | 'title' | 'game', step: 0, next: 0 };
 function scheduleStep(step: number, at: number, e: number, game: boolean): void {
   const passLen = BAR_LEN * BARS;
@@ -761,21 +762,21 @@ function scheduleStep(step: number, at: number, e: number, game: boolean): void 
   // bass: each pass walks differently
   const third = root + (MINOR.has(root % 12) ? 3 : 4);
   if (pass === 1) {
-    if (pos === 0) voice('triangle', N(root), at, e * 1.6, 0.16, musicGain);
-    if (pos === 2) voice('triangle', N(root + 7), at, e * 1.2, 0.11, musicGain);
-    if (pos === 4) voice('triangle', N(root + 12), at, e * 1.2, 0.1, musicGain);
+    if (pos === 0) voice('triangle', N(root), at, e * 1.6, 0.16 * BASS, musicGain);
+    if (pos === 2) voice('triangle', N(root + 7), at, e * 1.2, 0.11 * BASS, musicGain);
+    if (pos === 4) voice('triangle', N(root + 12), at, e * 1.2, 0.1 * BASS, musicGain);
   } else if (pass === 2) {
-    if (pos === 0) voice('triangle', N(root), at, e * 1.8, 0.16, musicGain);
-    if (pos === 3) voice('triangle', N(third), at, e * 1.2, 0.11, musicGain);
-    if (pos === 5 && bar % 2 === 1) voice('triangle', N(root + 7), at, e * 0.8, 0.09, musicGain);   // a pickup into the next bar
+    if (pos === 0) voice('triangle', N(root), at, e * 1.8, 0.16 * BASS, musicGain);
+    if (pos === 3) voice('triangle', N(third), at, e * 1.2, 0.11 * BASS, musicGain);
+    if (pos === 5 && bar % 2 === 1) voice('triangle', N(root + 7), at, e * 0.8, 0.09 * BASS, musicGain);   // a pickup into the next bar
   } else {
-    if (pos === 0) voice('triangle', N(root), at, e * 1.8, 0.16, musicGain);
-    if (pos === 4) voice('triangle', N(root + 7), at, e * 1.4, 0.12, musicGain);
+    if (pos === 0) voice('triangle', N(root), at, e * 1.8, 0.16 * BASS, musicGain);
+    if (pos === 4) voice('triangle', N(root + 7), at, e * 1.4, 0.12 * BASS, musicGain);
   }
   if (game) {
     hiss(at, 0.025, pos % 2 === 0 ? 0.05 : 0.02, musicGain, 8000);                                   // closed hat
     if (pass >= 1 && pos === 5) hiss(at, 0.07, 0.035, musicGain, 9000);                             // an open hat on the and of three
-    if (pos === 0 || (d > 0.5 && pos === 3) || (pass === 2 && pos === 4)) voice('square', 80, at, 0.09, 0.2, musicGain, 40);   // kick
+    if (pos === 0 || (d > 0.5 && pos === 3) || (pass === 2 && pos === 4)) voice('square', 80, at, 0.09, 0.15, musicGain, 40);   // kick
     if ((pass >= 2 || d > 0.6) && pos === 3) hiss(at, 0.08, 0.12, musicGain, 1800);                 // snare on two
     if (bar === BARS - 1 && pos >= 2) hiss(at, 0.06, 0.06 + (pos - 2) * 0.03, musicGain, 1800);      // a fill into the next pass
   }
