@@ -378,7 +378,7 @@ const G = {
 let buttons: Btn[] = [];
 let portrait!: HTMLCanvasElement;   // her portrait, cropped and scaled once
 let titleArt!: HTMLCanvasElement;   // the whole drawing, for the title screen
-let photo: HTMLImageElement | null = null;   // the perfect-day photo; shown once a perfect day has happened
+let photo: HTMLImageElement | null = null;   // the photo; shown once every achievement has been earned
 let achOpen = false;                         // the Achievements dialog is up
 let restoreArmed = 0;                        // Restore needs a second click before this time (ms)
 let chrome!: HTMLCanvasElement;     // the Paint window, drawn once
@@ -425,7 +425,10 @@ function unlock(id: string): void {
   if (G.runAch.includes(id)) return;
   G.runAch.push(id);
   G.achQueue.push(id);
-  if (!everAch.has(id)) { everAch.add(id); save(STORE_ACH, [...everAch].join(',')); }
+  if (!everAch.has(id)) {
+    everAch.add(id); save(STORE_ACH, [...everAch].join(','));
+    if (everAch.size >= ACH_TOTAL) setStatus('Last one. Photo unlocked. See Achievements.', 10);
+  }
 }
 
 // ============================================================================
@@ -720,7 +723,6 @@ function win(): void {
   SFX.win();
   unlock('perfect');
   if (!bestTime || G.t < bestTime) { bestTime = G.t; save(STORE_TIME, String(Math.round(G.t))); }
-  setStatus('Photo unlocked. It is under Achievements.', 10);
   endRun();
 }
 
@@ -1113,21 +1115,21 @@ function drawAchDialog(g: CanvasRenderingContext2D): void {
   for (const id of Object.keys(ACH)) {
     const got = everAch.has(id);
     text(g, (got ? '✓ ' : '  ') + ACH[id], x + 30, cy, 2, got ? BLACK : DARK);
-    text(g, ACH_HOW[id], x + 436, cy, 2, DARK);
+    if (got) text(g, ACH_HOW[id], x + 436, cy, 2, DARK);   // how it was done, only once it has been
     cy += 20;
   }
-  // the photo: an empty frame until a perfect day has happened
+  // the photo: an empty frame until every achievement has been earned
   const ph = 170, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 206;
   const px = Math.round(PLAY_W / 2 - pw / 2), py = cy + 12;
   g.fillStyle = BLACK; g.fillRect(px - 2, py - 2, pw + 4, ph + 4);
-  if (bestTime && photo) {
+  if (everAch.size >= ACH_TOTAL && photo) {
     drawPhoto(g, px, py, pw, ph);
     text(g, 'Perfect day. Wolf form.', PLAY_W / 2, py + ph + 10, 2, DARK, 'center');
   } else {
     g.fillStyle = WHITE; g.fillRect(px, py, pw, ph);
     g.fillStyle = LIGHT; for (let yy = py; yy < py + ph; yy++) for (let xx = px + (yy & 1); xx < px + pw; xx += 2) g.fillRect(xx, yy, 1, 1);
     textHalo(g, 'Locked', PLAY_W / 2, py + ph / 2 - 7, 2, BLACK, 'center');
-    text(g, 'A perfect day unlocks a photo.', PLAY_W / 2, py + ph + 10, 2, DARK, 'center');
+    text(g, 'All ' + ACH_TOTAL + ' achievements unlock a photo.', PLAY_W / 2, py + ph + 10, 2, DARK, 'center');
   }
   button(g, 'achclose', 'Close', x + w - 180, y + h - 44, 150, 30);
 }

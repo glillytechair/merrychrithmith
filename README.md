@@ -14,7 +14,7 @@ The one other color is the gold border on a rare Magic card.
 | Path | What it is |
 | --- | --- |
 | `art/merry-chrithmith.png` | The drawing. Never modified; embedded as base64 at build time. |
-| `art/endscene.png` | The perfect-day photo, original. Not used by the build. |
+| `art/endscene.png` | The photo behind the Achievements screen, original. Not used by the build. |
 | `art/endscene.jpg` | A 720 px JPEG copy of the photo; this is what the build embeds. |
 | `src/main.ts` | The whole game. The two lines to edit are at the very top. |
 | `src/index.html` | Page template. `build.mjs` inlines the compiled JS and the PNG into it. |
@@ -74,8 +74,9 @@ import works.
   wreath of a run is free. Zero undos is a Sierra-style death.
 - The item achievements take a few of a kind in one run: five S.Pellegrino, five
   Magic cards, five black hearts, three steaks, three sugars dodged.
-- The Achievements menu lists every achievement and how it is earned, and holds
-  a framed photo that stays locked until a perfect day.
+- The Achievements menu lists every achievement, says how each one was earned
+  once it has been, and holds a framed photo that stays locked until all 14
+  achievements have been earned.
 - Restore on the end screen really does restore: a second click within five seconds
   clears every achievement, the best XP, the best time and locks the photo again.
 - Ctrl+Z, the palette, the menus, some of the tools and the Restore button all do
