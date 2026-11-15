@@ -1,0 +1,18 @@
+{
+  "name": "wreath-quest",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "build": "node build.mjs",
+    "serve": "python -m http.server 8123 -d dist",
+    "dev": "npm run build && npm run serve"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  },
+  "private": true
+}
