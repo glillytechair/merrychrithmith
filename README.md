@@ -68,6 +68,7 @@ import works.
 - Score is XP. 1 minute = 1 XP. 1,080 XP is a perfect day and ends the run with
   "Indeed." Every 108 XP is a level ("Ding.").
 - Two catches within 140 ms count as two things at once: both are doubled.
+- The fifth wreath on the head pays a flat 50 XP bonus on the spot.
 - Consecutive catches raise the storm count. ×2 at 20, ×3 at 30 ("Went infinite").
   A bad catch resets it.
 - You have three undos. A bad catch or a border wreath spends one. The first border
@@ -118,6 +119,7 @@ All pacing lives in the constants block near the top of `src/main.ts`:
 | `BAD_START` / `BAD_END` | share of spawns that are bad | 0.20 / 0.30 |
 | `PAIR_START` / `PAIR_END` | share of spawns that arrive as a pair | 0.05 / 0.45 |
 | `XP_GOOD` / `XP_STEAK` / `XP_WREATH` | base XP per catch | 5 / 6 / 10 |
+| `STACK_BONUS` | flat XP when the fifth wreath lands | 50 |
 | `STORM_X2` / `STORM_X3` | storm counts for the ×2 and ×3 multipliers | 20 / 30 |
 | `BAD_INSET` | bad things must hit the body, this many px inside the selection edge | 26 |
 | `CATCH_BAND` | things can only land within this band below the portrait's top | 56 |

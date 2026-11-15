@@ -24,6 +24,7 @@ const RAMP_SECONDS = 170;        // seconds until difficulty maxes out
 const XP_GOOD = 5;
 const XP_STEAK = 6;
 const XP_WREATH = 10;
+const STACK_BONUS = 50;          // flat XP, no multiplier, the moment the fifth wreath lands
 const DOUBLE_WINDOW_MS = 140;    // two catches this close together = two things at once
 const BANNER_LINGER = 1;         // extra seconds every pop-up banner and achievement toast stays on screen
 const LAND_FX = 0.45;            // seconds the portrait's selection flashes after a wreath lands
@@ -742,6 +743,10 @@ function award(base: number, x: number, y: number, label: string): void {
     unlock('two');
     G.lastCatchAt = -1e9;
   } else { G.lastCatchAt = now; G.lastCatchXP = gain; }
+  gainXP(gain, tag, x, y);
+}
+/** Adds XP with the usual fanfare: floater, flyer into the counter, level ding, and the perfect-day check. */
+function gainXP(gain: number, tag: string, x: number, y: number): void {
   const before = G.xp;
   G.xp = Math.min(PERFECT_DAY, G.xp + gain);
   floater(tag, x, y);
@@ -782,7 +787,7 @@ function landOnHead(): void {
   const r = portraitRect();
   award(XP_WREATH, r.x + r.w * HEAD_CX, r.y - stackHeight() - 10, 'ON HEAD');
   unlock('literal');
-  if (G.stack === 5) unlock('stack5');
+  if (G.stack === 5) { unlock('stack5'); gainXP(STACK_BONUS, 'LOAD-BEARING +' + STACK_BONUS, r.x + r.w * HEAD_CX, r.y - stackHeight() - 34); }
 }
 /** Where a point sits across the head zone: -1 at its left edge, 0 under the center of the stack, 1 at its right edge. */
 function stackOffset(cx: number, P: { x: number; w: number }): number {
@@ -1080,9 +1085,10 @@ function drawFloaters(g: CanvasRenderingContext2D): void {
   for (const f of G.floaters) {
     const k = f.t / f.life;
     const y = f.y - k * 46;
-    if (k > 0.7 && (Math.floor(f.t * 30) & 1)) continue; // flicker out
+    g.globalAlpha = k < 0.55 ? 1 : Math.max(0, 1 - (k - 0.55) / 0.45);   // a smooth fade out, no flicker
     textHalo(g, f.text, clamp(f.x, 60, PLAY_W - 60), y, f.scale, BLACK, 'center');
   }
+  g.globalAlpha = 1;
   for (const f of G.flyers) {
     // a small +N on a quadratic arc from the catch to the XP counter, eased so it leaves slowly and arrives quickly
     const k = f.t / f.life, e = k * k;
