@@ -75,6 +75,8 @@ const TOOL_MSGS: Record<number, string> = {
   8: 'The airbrush hissed. Nothing came out.',
   14: 'An ellipse is a wreath that did nothing.',
 };
+const TOOLS_TO_FIND = 5;                 // distinct responding tools clicked for the achievement
+const toolsFound = new Set<number>();    // this visit only; they are quick to find again
 
 type Phase = 'title' | 'howto' | 'playing' | 'dying' | 'over' | 'won';
 type Kind = 'wreath' | 'pellegrino' | 'card' | 'heart' | 'steak' | 'dasani' | 'counterspell' | 'beach' | 'comforter' | 'sugar';
@@ -307,12 +309,13 @@ const ACH: Record<string, string> = {
   perfect: 'Perfect day',
   sugar: 'Sugar avoided',
   beach: 'Went to the beach',
+  tools: 'Clicked around',
   rare: 'Pulled a rare',
   palette: 'Noticed the palette',
 };
 const ACH_TOTAL = Object.keys(ACH).length;
 // How many of a kind, in one run, the item achievements take. One each made them all land in the first half minute.
-const ACH_NEED = { hydrated: 5, card: 5, heart: 5, steak: 3, sugar: 3 };
+const ACH_NEED = { hydrated: 5, card: 5, heart: 5, steak: 3, sugar: 2 };
 const NUM_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 // How each one is earned, for the Achievements menu. Keep each under 27 characters; the column is narrow.
 const ACH_HOW: Record<string, string> = {
@@ -328,6 +331,7 @@ const ACH_HOW: Record<string, string> = {
   perfect: PERFECT_DAY + ' XP in one run',
   sugar: 'let ' + NUM_WORDS[ACH_NEED.sugar] + ' sugars fall past',
   beach: 'die to the beach',
+  tools: 'try ' + NUM_WORDS[TOOLS_TO_FIND] + ' of the tools',
   rare: 'catch a gold-bordered card',
   palette: 'click a palette color',
 };
@@ -1119,7 +1123,7 @@ function drawAchDialog(g: CanvasRenderingContext2D): void {
     cy += 20;
   }
   // the photo: an empty frame until every achievement has been earned
-  const ph = 170, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 206;
+  const ph = 150, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 182;
   const px = Math.round(PLAY_W / 2 - pw / 2), py = cy + 12;
   g.fillStyle = BLACK; g.fillRect(px - 2, py - 2, pw + 4, ph + 4);
   if (everAch.size >= ACH_TOTAL && photo) {
@@ -1266,8 +1270,8 @@ function render(tNow: number): void {
       text(ctx, 'P to continue', PLAY_W / 2, 278, 2, DARK, 'center');
     }
     if (G.phase === 'over' || G.phase === 'won') drawEndDialog(ctx);
-    drawAchievement(ctx);
   }
+  drawAchievement(ctx);   // toasts show on every screen; some achievements come from the title
   if (achOpen) drawAchDialog(ctx);
   ctx.restore();
 }
@@ -1324,7 +1328,10 @@ function chromeClick(x: number, y: number): boolean {
     const col = Math.floor((x - tx) / 26), row = Math.floor((y - ty) / 26);
     if (col >= 0 && col < 2 && row >= 0 && row < 8 && (x - tx) % 26 < 25 && (y - ty) % 26 < 25) {
       const i = row * 2 + col, msg = TOOL_MSGS[i];
-      if (msg) { G.toolPress = i; G.toolPressUntil = performance.now() + 160; SFX.click(); setStatus(msg, 4); }
+      if (msg) {
+        G.toolPress = i; G.toolPressUntil = performance.now() + 160; SFX.click(); setStatus(msg, 4);
+        toolsFound.add(i); if (toolsFound.size >= TOOLS_TO_FIND) unlock('tools');
+      }
     }
     return true;   // every other tool, and the options box, does nothing. No movement, no message.
   }

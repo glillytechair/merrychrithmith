@@ -73,15 +73,16 @@ import works.
 - You have three undos. A bad catch or a border wreath spends one. The first border
   wreath of a run is free. Zero undos is a Sierra-style death.
 - The item achievements take a few of a kind in one run: five S.Pellegrino, five
-  Magic cards, five black hearts, three steaks, three sugars dodged.
+  Magic cards, five black hearts, three steaks, two sugars dodged.
 - The Achievements menu lists every achievement, says how each one was earned
-  once it has been, and holds a framed photo that stays locked until all 14
+  once it has been, and holds a framed photo that stays locked until all 15
   achievements have been earned.
 - Restore on the end screen really does restore: a second click within five seconds
   clears every achievement, the best XP, the best time and locks the photo again,
   then returns to the title screen.
 - Ctrl+Z, the palette, the menus, some of the tools and the Restore button all do
-  something. The other tools do nothing, on purpose.
+  something. The other tools do nothing, on purpose. Trying five of the tools
+  that respond is an achievement.
 - Best XP, best perfect-day time, the sound setting and the set of achievements
   ever earned are kept in `localStorage` only.
 
@@ -124,7 +125,7 @@ All pacing lives in the constants block near the top of `src/main.ts`:
 | `EDGE_SLOP` | how far past the head zone a wreath still bounces off instead of becoming a border | 0.3 |
 | `WREATH_SHARE` | share of good spawns that are wreaths | 0.15 |
 | `RARE_CARD_SHARE` / `RARE_CARD_MULT` | share of Magic cards that are rare, and what a rare pays | 1/3 / 3 |
-| `ACH_NEED` | catches (sugar: dodges) of a kind in one run for its achievement | 5 / 5 / 5 / 3 / 3 |
+| `ACH_NEED` | catches (sugar: dodges) of a kind in one run for its achievement | 5 / 5 / 5 / 3 / 2 |
 
 The first ten seconds spawn at half the usual rate, easing to the normal rate by
 thirty seconds, so the player has time to settle in.
