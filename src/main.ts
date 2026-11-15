@@ -598,7 +598,7 @@ function ensureAudio(): void {
   if (!ac) {
     try { ac = new AudioContext(); } catch { return; }
     masterGain = ac.createGain(); masterGain.gain.value = soundOn ? 1 : 0; masterGain.connect(ac.destination);
-    musicGain = ac.createGain(); musicGain.gain.value = 0.5; musicGain.connect(masterGain);
+    musicGain = ac.createGain(); musicGain.gain.value = 0.44; musicGain.connect(masterGain);   // was 0.5; 12% quieter
     sfxGain = ac.createGain(); sfxGain.gain.value = 0.9; sfxGain.connect(masterGain);
     noiseBuf = ac.createBuffer(1, ac.sampleRate, ac.sampleRate);
     const d = noiseBuf.getChannelData(0);
@@ -669,11 +669,6 @@ function scheduleStep(step: number, at: number, e: number, game: boolean): void 
   if (game) {
     hiss(at, 0.025, pos % 2 === 0 ? 0.05 : 0.02, musicGain, 8000);
     if (pos === 0 || (d > 0.5 && pos === 3)) voice('square', 80, at, 0.09, 0.2, musicGain, 40);
-    if (G.storm >= STORM_X3) {
-      const arp = [69, 72, 76, 81];
-      voice('square', midi(arp[step % 4] + 12), at, e * 0.45, 0.04, musicGain);
-      voice('square', midi(arp[(step + 2) % 4] + 12), at + e / 2, e * 0.45, 0.04, musicGain);
-    }
   }
 }
 function musicTick(): void {
@@ -1041,8 +1036,12 @@ function drawPortrait(g: CanvasRenderingContext2D, tNow: number): void {
     }
   }
   if (G.landFx > 0) {
-    // a wreath just landed: a quick inversion, then the selection border blinks
-    if (G.landFx > LAND_FX - 0.07) { g.globalCompositeOperation = 'difference'; g.fillStyle = WHITE; g.fillRect(x, y, P.w, P.h); g.globalCompositeOperation = 'source-over'; }
+    // a wreath just landed: the drawing goes black and white for a moment, then the selection border blinks
+    if (G.landFx > LAND_FX - 0.1) {
+      g.save(); g.beginPath(); g.rect(x, y, P.w, P.h); g.clip();
+      g.globalCompositeOperation = 'saturation'; g.fillStyle = DARK; g.fillRect(x, y, P.w, P.h);   // keeps the light and dark, drops the color
+      g.restore();
+    }
     if (Math.floor(G.landFx * 20) & 1) {
       g.fillStyle = WHITE; hollowRect(g, x - 5, y - 5, P.w + 10, P.h + 10, 3);
       g.fillStyle = BLACK; hollowRect(g, x - 8, y - 8, P.w + 16, P.h + 16, 3);

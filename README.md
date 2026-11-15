@@ -94,7 +94,7 @@ remembered. To ship it muted instead, set `SOUND_DEFAULT` to `false` in
 - Music: a square-wave loop built on Leontovych's four-note bell figure (Carol of
   the Bells, 1914, public domain). Slow and sparse on the title and end screens;
   in a run it speeds up with the difficulty, gains a counter-line and drums as the
-  run gets busy, and adds an arpeggio once the storm count goes infinite.
+  run gets busy.
 - Effects: catch blips that rise in pitch with the storm count, a two-note chime
   for a wreath on the head, a buzz for a lost undo, a slide for a border wreath,
   an arpeggio for achievements, an EverQuest-style bell on each level, a
