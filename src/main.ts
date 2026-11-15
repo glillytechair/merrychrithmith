@@ -70,7 +70,7 @@ const TOOL_MSGS: Record<number, string> = {
   1: 'The Select tool is in use.',
   2: 'The eraser is not an undo. You have three.',
   3: 'The bucket is empty.',
-  4: 'Picked a color: grey. As expected.',
+  4: 'Picked color: black, as expected.',
   5: 'Zoom: 100%. Things are the size they are.',
   8: 'The airbrush hissed. Nothing came out.',
   14: 'An ellipse is a wreath that did nothing.',
@@ -311,20 +311,23 @@ const ACH: Record<string, string> = {
   palette: 'Noticed the palette',
 };
 const ACH_TOTAL = Object.keys(ACH).length;
+// How many of a kind, in one run, the item achievements take. One each made them all land in the first half minute.
+const ACH_NEED = { hydrated: 5, card: 5, heart: 5, steak: 3, sugar: 3 };
+const NUM_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
 // How each one is earned, for the Achievements menu. Keep each under 27 characters; the column is narrow.
 const ACH_HOW: Record<string, string> = {
   literal: 'a wreath on the head',
   border: 'wreath around the portrait',
-  hydrated: 'catch a S.Pellegrino',
-  card: 'catch a Magic card',
-  heart: 'catch a black heart',
-  steak: 'catch a steak',
+  hydrated: NUM_WORDS[ACH_NEED.hydrated] + ' S.Pellegrino in a run',
+  card: NUM_WORDS[ACH_NEED.card] + ' Magic cards in a run',
+  heart: NUM_WORDS[ACH_NEED.heart] + ' black hearts in a run',
+  steak: NUM_WORDS[ACH_NEED.steak] + ' steaks in a run',
   two: 'two catches in ' + DOUBLE_WINDOW_MS + ' ms',
   infinite: 'storm count ' + STORM_X3,
   stack5: 'five wreaths on the head',
   stack10: 'ten wreaths on the head',
   perfect: PERFECT_DAY + ' XP in one run',
-  sugar: 'let the sugar fall past',
+  sugar: 'let ' + NUM_WORDS[ACH_NEED.sugar] + ' sugars fall past',
   rare: 'catch a gold-bordered card',
   palette: 'click a palette color',
 };
@@ -353,6 +356,7 @@ const G = {
   t: 0, xp: 0, storm: 0, undos: START_UNDOS, stack: 0, level: 0,
   items: [] as Item[],
   spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0,
+  catches: {} as Partial<Record<Kind, number>>, dodges: {} as Partial<Record<Kind, number>>,   // per kind, this run
   px: 0, targetX: 0,
   floaters: [] as Floater[],
   flyers: [] as Flyer[], xpFlash: 0, landFx: 0,
@@ -699,7 +703,7 @@ function startRun(): void {
   lastAchSound = '';
   G.phase = 'playing';
   G.t = 0; G.xp = 0; G.storm = 0; G.undos = START_UNDOS; G.stack = 0; G.level = 0;
-  G.items = []; G.spawnTimer = 0.7; G.spawnCount = 0; G.dodged = 0; G.caught = 0; G.wreathsOnHead = 0;
+  G.items = []; G.spawnTimer = 0.7; G.spawnCount = 0; G.dodged = 0; G.caught = 0; G.wreathsOnHead = 0; G.catches = {}; G.dodges = {};
   G.floaters = []; G.flyers = []; G.xpFlash = 0; G.landFx = 0; G.banner = null; G.achQueue = []; G.achT = 0;
   G.borderFx = 0; G.infFx = 0; G.shakeFx = 0; G.dyingT = 0;
   G.lastCatchAt = -1e9; G.lastCatchXP = 0; G.cause = ''; G.deathMsg = '';
@@ -764,10 +768,11 @@ function catchGood(it: Item): void {
   if (it.rare) SFX.rare();
   award(KINDS[it.kind].xp * (it.rare ? RARE_CARD_MULT : 1), it.x + it.w / 2, it.y, it.rare ? 'RARE' : KINDS[it.kind].label);
   if (it.rare) unlock('rare');
-  if (it.kind === 'pellegrino') unlock('hydrated');
-  if (it.kind === 'card') unlock('card');
-  if (it.kind === 'heart') unlock('heart');
-  if (it.kind === 'steak') unlock('steak');
+  const n = (G.catches[it.kind] = (G.catches[it.kind] ?? 0) + 1);
+  if (it.kind === 'pellegrino' && n >= ACH_NEED.hydrated) unlock('hydrated');
+  if (it.kind === 'card' && n >= ACH_NEED.card) unlock('card');
+  if (it.kind === 'heart' && n >= ACH_NEED.heart) unlock('heart');
+  if (it.kind === 'steak' && n >= ACH_NEED.steak) unlock('steak');
 }
 function landOnHead(): void {
   G.stack++; G.wreathsOnHead++; G.caught++;
@@ -912,7 +917,11 @@ function update(dt: number): void {
     if (G.phase !== 'playing') { if (!done) keep.push(it); continue; }  // a win or death froze the field
     if (done) continue;
     if (it.y > PLAY_H + 4) {
-      if (!KINDS[it.kind].good) { G.dodged++; if (it.kind === 'sugar') unlock('sugar'); }
+      if (!KINDS[it.kind].good) {
+        G.dodged++;
+        const n = (G.dodges[it.kind] = (G.dodges[it.kind] ?? 0) + 1);
+        if (it.kind === 'sugar' && n >= ACH_NEED.sugar) unlock('sugar');
+      }
       continue;
     }
     keep.push(it);

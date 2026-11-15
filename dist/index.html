@@ -83,7 +83,7 @@
         1: 'The Select tool is in use.',
         2: 'The eraser is not an undo. You have three.',
         3: 'The bucket is empty.',
-        4: 'Picked a color: grey. As expected.',
+        4: 'Picked color: black, as expected.',
         5: 'Zoom: 100%. Things are the size they are.',
         8: 'The airbrush hissed. Nothing came out.',
         14: 'An ellipse is a wreath that did nothing.',
@@ -344,20 +344,23 @@
         palette: 'Noticed the palette',
     };
     const ACH_TOTAL = Object.keys(ACH).length;
+    // How many of a kind, in one run, the item achievements take. One each made them all land in the first half minute.
+    const ACH_NEED = { hydrated: 5, card: 5, heart: 5, steak: 3, sugar: 3 };
+    const NUM_WORDS = ['no', 'one', 'two', 'three', 'four', 'five', 'six', 'seven', 'eight', 'nine', 'ten'];
     // How each one is earned, for the Achievements menu. Keep each under 27 characters; the column is narrow.
     const ACH_HOW = {
         literal: 'a wreath on the head',
         border: 'wreath around the portrait',
-        hydrated: 'catch a S.Pellegrino',
-        card: 'catch a Magic card',
-        heart: 'catch a black heart',
-        steak: 'catch a steak',
+        hydrated: NUM_WORDS[ACH_NEED.hydrated] + ' S.Pellegrino in a run',
+        card: NUM_WORDS[ACH_NEED.card] + ' Magic cards in a run',
+        heart: NUM_WORDS[ACH_NEED.heart] + ' black hearts in a run',
+        steak: NUM_WORDS[ACH_NEED.steak] + ' steaks in a run',
         two: 'two catches in ' + DOUBLE_WINDOW_MS + ' ms',
         infinite: 'storm count ' + STORM_X3,
         stack5: 'five wreaths on the head',
         stack10: 'ten wreaths on the head',
         perfect: PERFECT_DAY + ' XP in one run',
-        sugar: 'let the sugar fall past',
+        sugar: 'let ' + NUM_WORDS[ACH_NEED.sugar] + ' sugars fall past',
         rare: 'catch a gold-bordered card',
         palette: 'click a palette color',
     };
@@ -391,6 +394,7 @@
         t: 0, xp: 0, storm: 0, undos: START_UNDOS, stack: 0, level: 0,
         items: [],
         spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0,
+        catches: {}, dodges: {}, // per kind, this run
         px: 0, targetX: 0,
         floaters: [],
         flyers: [], xpFlash: 0, landFx: 0,
@@ -980,6 +984,8 @@
         G.dodged = 0;
         G.caught = 0;
         G.wreathsOnHead = 0;
+        G.catches = {};
+        G.dodges = {};
         G.floaters = [];
         G.flyers = [];
         G.xpFlash = 0;
@@ -1080,13 +1086,14 @@
         award(KINDS[it.kind].xp * (it.rare ? RARE_CARD_MULT : 1), it.x + it.w / 2, it.y, it.rare ? 'RARE' : KINDS[it.kind].label);
         if (it.rare)
             unlock('rare');
-        if (it.kind === 'pellegrino')
+        const n = (G.catches[it.kind] = (G.catches[it.kind] ?? 0) + 1);
+        if (it.kind === 'pellegrino' && n >= ACH_NEED.hydrated)
             unlock('hydrated');
-        if (it.kind === 'card')
+        if (it.kind === 'card' && n >= ACH_NEED.card)
             unlock('card');
-        if (it.kind === 'heart')
+        if (it.kind === 'heart' && n >= ACH_NEED.heart)
             unlock('heart');
-        if (it.kind === 'steak')
+        if (it.kind === 'steak' && n >= ACH_NEED.steak)
             unlock('steak');
     }
     function landOnHead() {
@@ -1312,7 +1319,8 @@
             if (it.y > PLAY_H + 4) {
                 if (!KINDS[it.kind].good) {
                     G.dodged++;
-                    if (it.kind === 'sugar')
+                    const n = (G.dodges[it.kind] = (G.dodges[it.kind] ?? 0) + 1);
+                    if (it.kind === 'sugar' && n >= ACH_NEED.sugar)
                         unlock('sugar');
                 }
                 continue;
