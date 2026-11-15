@@ -1132,7 +1132,7 @@ function drawAchDialog(g: CanvasRenderingContext2D): void {
     g.fillStyle = WHITE; g.fillRect(px, py, pw, ph);
     g.fillStyle = LIGHT; for (let yy = py; yy < py + ph; yy++) for (let xx = px + (yy & 1); xx < px + pw; xx += 2) g.fillRect(xx, yy, 1, 1);
     textHalo(g, 'Locked', PLAY_W / 2, py + ph / 2 - 7, 2, BLACK, 'center');
-    text(g, 'All ' + ACH_TOTAL + ' achievements unlock a photo.', PLAY_W / 2, py + ph + 10, 2, DARK, 'center');
+    text(g, 'All ' + ACH_TOTAL + ' achievements to unlock.', PLAY_W / 2, py + ph + 10, 2, DARK, 'center');
   }
   button(g, 'achclose', 'Close', x + w - 180, y + h - 44, 150, 30);
 }
