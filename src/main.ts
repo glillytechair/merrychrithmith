@@ -28,10 +28,6 @@ const STACK_BONUS = 50;          // flat XP, no multiplier, the moment the fifth
 const DOUBLE_WINDOW_MS = 140;    // two catches this close together = two things at once
 const BANNER_LINGER = 1;         // extra seconds every pop-up banner and achievement toast stays on screen
 const MUSIC_LEVEL = 0.44;        // gain of the Paint music bus
-// The photo's own music: a clip cut from the recording, played while the pointer rests on the unlocked photo.
-const PHOTO_MUSIC_SRC = 'photo-music.aac';   // shipped beside index.html; fetched only when first needed
-// Seconds into that clip. The recording is 22 s long, so 133 / 215 / 230 are read as tenths: start at 13.3, fade from 21.5, loop at 21.9.
-const PHOTO_START = 13.3, PHOTO_FADE_AT = 21.5, PHOTO_LOOP_AT = 21.9;
 const LAND_FX = 0.45;            // seconds the portrait's selection flashes after a wreath lands
 const PERFECT_ZONE = 0.8;        // share of the head zone, out from the stack's center, where a wreath lands; beyond it the wreath bounces
 const EDGE_SLOP = 0.3;           // how far past the head zone a wreath still bounces off instead of falling on to a border
@@ -387,10 +383,6 @@ let buttons: Btn[] = [];
 let portrait!: HTMLCanvasElement;   // her portrait, cropped and scaled once
 let titleArt!: HTMLCanvasElement;   // the whole drawing, for the title screen
 let photo: HTMLImageElement | null = null;   // the photo; shown once every achievement has been earned
-let photoRect: { x: number; y: number; w: number; h: number } | null = null;   // where the unlocked photo was last drawn
-let photoHover = false;                      // the pointer is on it
-let photoBuf: AudioBuffer | null = null, photoLoading = false;   // the decoded clip, fetched on first need
-let photoSrc: AudioBufferSourceNode | null = null, photoMusicGain: GainNode | null = null, photoPlaying = false, photoStartedAt = 0;
 let achOpen = false;                         // the Achievements dialog is up
 let restoreArmed = 0;                        // Restore needs a second click before this time (ms)
 let chrome!: HTMLCanvasElement;     // the Paint window, drawn once
@@ -625,52 +617,6 @@ function setSound(on: boolean): void {
   soundOn = on; save(STORE_SOUND, on ? '1' : '0');
   if (ac) masterGain.gain.setTargetAtTime(on ? 1 : 0, ac.currentTime, 0.02);
   setStatus('Sound: ' + (on ? 'on' : 'off') + '.  (M)', 3);
-}
-function loadPhotoMusic(): void {
-  if (photoBuf || photoLoading || !ac) return;
-  photoLoading = true;
-  fetch(PHOTO_MUSIC_SRC).then(r => r.arrayBuffer()).then(b => ac!.decodeAudioData(b)).then(buf => { photoBuf = buf; })
-    .catch(() => { /* no clip, no music; nothing else breaks */ }).finally(() => { photoLoading = false; });
-}
-function startPhotoMusic(): void {
-  if (!ac) return;
-  if (!photoBuf) { loadPhotoMusic(); return; }   // starts on a later frame, once the clip is decoded
-  if (!photoMusicGain) { photoMusicGain = ac.createGain(); photoMusicGain.connect(masterGain); }
-  const src = ac.createBufferSource();
-  src.buffer = photoBuf; src.loop = true; src.loopStart = PHOTO_START; src.loopEnd = Math.min(PHOTO_LOOP_AT, photoBuf.duration);
-  src.connect(photoMusicGain);
-  const now = ac.currentTime, g = photoMusicGain.gain;
-  g.cancelScheduledValues(now); g.setValueAtTime(0, now); g.linearRampToValueAtTime(1, now + 0.6);   // ease in
-  src.start(now, PHOTO_START);
-  photoSrc = src; photoStartedAt = now; photoPlaying = true;
-  musicGain.gain.setTargetAtTime(0, now, 0.15);   // the Paint music steps aside
-}
-function stopPhotoMusic(): void {
-  photoPlaying = false;
-  if (!ac || !photoSrc || !photoMusicGain) return;
-  const now = ac.currentTime, g = photoMusicGain.gain, src = photoSrc;
-  photoSrc = null;
-  g.cancelScheduledValues(now); g.setTargetAtTime(0, now, 0.08);
-  src.stop(now + 0.4);
-  musicGain.gain.setTargetAtTime(MUSIC_LEVEL, now, 0.3);
-}
-/** Where the clip is right now, in seconds into the file; the source loops between PHOTO_START and its loopEnd. */
-function photoPos(): number {
-  if (!ac || !photoSrc) return -1;
-  const span = photoSrc.loopEnd - PHOTO_START;
-  return PHOTO_START + ((ac.currentTime - photoStartedAt) % span);
-}
-/** Runs every frame: starts and stops the clip with the hover, and fades it out over the stretch before the loop point. */
-function photoMusicTick(): void {
-  const want = achOpen && photoHover && soundOn && everAch.size >= ACH_TOTAL && !!ac;
-  if (want && !photoPlaying) startPhotoMusic();
-  else if (!want && photoPlaying) stopPhotoMusic();
-  if (!photoPlaying || !photoSrc || !photoMusicGain || !ac) return;
-  const now = ac.currentTime;
-  if (now - photoStartedAt < 0.6) return;   // still easing in
-  const pos = photoPos(), g = photoMusicGain.gain;
-  if (pos >= PHOTO_FADE_AT) g.setTargetAtTime(Math.max(0, 1 - (pos - PHOTO_FADE_AT) / (photoSrc.loopEnd - PHOTO_FADE_AT)), now, 0.05);
-  else g.setTargetAtTime(1, now, 0.03);
 }
 const midi = (m: number) => 440 * Math.pow(2, (m - 69) / 12);
 function voice(type: OscillatorType, f0: number, at: number, dur: number, vol: number, dest: GainNode, f1?: number): void {
@@ -958,7 +904,6 @@ function update(dt: number): void {
   // timers that run in every phase
   if (G.statusT > 0) G.statusT -= dt;
   if (G.banner) { G.banner.t += dt; if (G.banner.t > G.banner.life) G.banner = null; }
-  photoMusicTick();
   for (const f of G.floaters) f.t += dt;
   G.floaters = G.floaters.filter(f => f.t < f.life);
   for (const f of G.flyers) f.t += dt;
@@ -1231,9 +1176,7 @@ function drawAchDialog(g: CanvasRenderingContext2D): void {
   const ph = 170, pw = photo ? Math.round(ph * photo.naturalWidth / photo.naturalHeight) : 206;
   const px = Math.round(PLAY_W / 2 - pw / 2), py = cy + 12;
   g.fillStyle = BLACK; g.fillRect(px - 2, py - 2, pw + 4, ph + 4);
-  photoRect = null;
   if (everAch.size >= ACH_TOTAL && photo) {
-    photoRect = { x: px, y: py, w: pw, h: ph };
     drawPhoto(g, px, py, pw, ph);
     text(g, 'Perfect day. Wolf form.', PLAY_W / 2, py + ph + 10, 2, DARK, 'center');
   } else {
@@ -1447,7 +1390,6 @@ function chromeClick(x: number, y: number): boolean {
 canvas.addEventListener('mousemove', e => {
   const { x, y } = toLogical(e);
   G.mouseX = x - PLAY_X; G.mouseY = y - PLAY_Y;
-  photoHover = !!photoRect && achOpen && G.mouseX >= photoRect.x && G.mouseX < photoRect.x + photoRect.w && G.mouseY >= photoRect.y && G.mouseY < photoRect.y + photoRect.h;
   const b = hitButton(x, y);
   G.hover = b ? b.id : null;
   if (G.phase === 'playing' && !G.bot) {
@@ -1461,7 +1403,7 @@ canvas.addEventListener('mousedown', e => {
   const { x, y } = toLogical(e);
   const b = hitButton(x, y);
   if (b) { onButton(b.id); G.hover = null; return; }
-  if (achOpen) { achOpen = false; photoHover = false; return; }   // any click outside its button closes the Achievements dialog
+  if (achOpen) { achOpen = false; return; }   // any click outside its button closes the Achievements dialog
   if (chromeClick(x, y)) return;
   if (G.phase === 'title') G.phase = 'howto';
   else if (G.phase === 'howto') startRun();
@@ -1528,7 +1470,7 @@ img.onload = () => {
   G.px = (PLAY_W - portrait.width) / 2; G.targetX = G.px;
   fit();
   if (location.hash === '#bot') G.bot = true;
-  if (location.hash === '#debug' || location.hash === '#bot') (window as unknown as { __wq: unknown }).__wq = { G, startRun, update, KINDS, audio: () => ({ state: ac ? ac.state : 'none', notes: notesScheduled, mode: music.mode, soundOn, master: ac ? masterGain.gain.value : -1 }), photo: () => ({ playing: photoPlaying, hover: photoHover, loaded: !!photoBuf, pos: +photoPos().toFixed(2), gain: photoMusicGain ? +photoMusicGain.gain.value.toFixed(2) : -1 }), scheduleStep, notes: () => notesScheduled };
+  if (location.hash === '#debug' || location.hash === '#bot') (window as unknown as { __wq: unknown }).__wq = { G, startRun, update, KINDS, audio: () => ({ state: ac ? ac.state : 'none', notes: notesScheduled, mode: music.mode, soundOn, master: ac ? masterGain.gain.value : -1 }), scheduleStep, notes: () => notesScheduled };
   requestAnimationFrame(frame);
 };
 img.src = (window as unknown as { __WQ_ART__: string }).__WQ_ART__;

@@ -16,8 +16,6 @@ The one other color is the gold border on a rare Magic card.
 | `art/merry-chrithmith.png` | The drawing. Never modified; embedded as base64 at build time. |
 | `art/endscene.png` | The photo behind the Achievements screen, original. Not used by the build. |
 | `art/endscene.jpg` | A 720 px JPEG copy of the photo; this is what the build embeds. |
-| `art/photo-music.aac` | The audio track of the screen recording, its AAC frames lifted straight out of the MP4. The build copies it to `dist/`, where the page fetches it only once the photo is unlocked. The start, fade and loop points are constants in `main.ts`. |
-| `dist/photo-music.aac` | That copy. Keep it beside `index.html`. |
 | `src/main.ts` | The whole game. The two lines to edit are at the very top. |
 | `src/index.html` | Page template. `build.mjs` inlines the compiled JS and the PNG into it. |
 | `build.mjs` | Runs `tsc`, then writes `dist/index.html`. |
@@ -45,8 +43,8 @@ npm install
 npm run build
 ```
 
-Then open `dist/index.html` in a browser. No server is needed; it has no tracking,
-and its one network request is for `photo-music.aac`, once the photo is unlocked.
+Then open `dist/index.html` in a browser. No server is needed; it has no network
+requests and no tracking.
 
 For a local server instead, `npm run dev` builds and then serves `dist/` at
 http://localhost:8123. It does not rebuild on changes; rerun it after editing.
@@ -80,9 +78,6 @@ import works.
 - The Achievements menu lists every achievement, says how each one was earned
   once it has been, and holds a framed photo that stays locked until all 14
   achievements have been earned.
-- Resting the pointer on the unlocked photo plays its music: a fade-in, a fade
-  out near the end of the passage, then a loop. Moving off stops it. The Paint
-  music steps aside while it plays, and the M mute covers it.
 - Restore on the end screen really does restore: a second click within five seconds
   clears every achievement, the best XP, the best time and locks the photo again,
   then returns to the title screen.
