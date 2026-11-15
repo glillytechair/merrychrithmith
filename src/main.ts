@@ -1168,11 +1168,6 @@ function drawEndDialog(g: CanvasRenderingContext2D): void {
     text(g, 'Indeed.', PLAY_W / 2, cy, 6, BLACK, 'center'); cy += 54;
     text(g, 'A perfect day. ' + PERFECT_DAY + ' XP in ' + fmtTime(G.finishTime) + '.', PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 22;
     if (bestTime) text(g, 'Best time: ' + fmtTime(bestTime), PLAY_W / 2, cy, 2, DARK, 'center'); cy += 26;
-    if (photo) {   // the reward, small here; full size under Achievements
-      const th = 92, tw = Math.round(th * photo.naturalWidth / photo.naturalHeight), tx = x + w - 30 - tw, ty = y + 20;
-      g.fillStyle = BLACK; g.fillRect(tx - 2, ty - 2, tw + 4, th + 4);
-      drawPhoto(g, tx, ty, tw, th);
-    }
   } else {
     deathLines.forEach(l => { text(g, l, PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 20; });
     cy += 6;

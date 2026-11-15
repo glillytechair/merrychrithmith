@@ -75,8 +75,7 @@ import works.
 - The item achievements take a few of a kind in one run: five S.Pellegrino, five
   Magic cards, five black hearts, three steaks, three sugars dodged.
 - The Achievements menu lists every achievement and how it is earned, and holds
-  a framed photo that stays locked until a perfect day. The perfect-day screen
-  shows a small copy of the photo as well.
+  a framed photo that stays locked until a perfect day.
 - Restore on the end screen really does restore: a second click within five seconds
   clears every achievement, the best XP, the best time and locks the photo again.
 - Ctrl+Z, the palette, the menus, some of the tools and the Restore button all do
