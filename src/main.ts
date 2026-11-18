@@ -332,7 +332,15 @@ const ACH_HOW: Record<string, string> = {
 const STORE_ACH = 'wreathquest.achievements', STORE_BEST = 'wreathquest.best', STORE_TIME = 'wreathquest.besttime';
 const DEBUG = location.hash === '#debug' || location.hash === '#bot';   // tuning modes never save records
 const STORE_VERSION = 'wreathquest.v', SAVE_VERSION = '2';            // bump to wipe everyone's saved scores
-const STORE_NEWS = 'wreathquest.news', NEWS_VERSION = '1.1';          // the What's New box shows once per browser per version
+const PATCHES: { v: string; date: string; notes: string[] }[] = [   // newest first; the first entry is also the What's New box
+  { v: '1.1', date: 'Nov 18, 2026', notes: [
+    'Difficulty reduced. The wreaths were never the problem.',
+    'Fixed: nothing. It was working as intended.',
+    'Known issue: developer still thinks about you. No fix planned.',
+  ] },
+  { v: '1.0', date: 'Nov 15, 2026', notes: ['Shipped.'] },
+];
+const STORE_NEWS = 'wreathquest.news', NEWS_VERSION = PATCHES[0].v;   // the What's New box shows once per browser per version
 function load(key: string): string | null { try { return localStorage.getItem(key); } catch { return null; } }
 function save(key: string, v: string): void { if (DEBUG) return; try { localStorage.setItem(key, v); } catch { /* fine */ } }
 if (load(STORE_VERSION) !== SAVE_VERSION) {
@@ -380,6 +388,7 @@ let titleArt!: HTMLCanvasElement;   // the whole drawing, for the title screen
 let photo: HTMLImageElement | null = null;   // the photo; shown once every achievement has been earned
 let achOpen = false;                         // the Achievements dialog is up
 let newsOpen = load(STORE_NEWS) !== NEWS_VERSION;   // the What's New box is up (first load after an update)
+let patchOpen = false;                       // the Patch Notes dialog is up
 let restoreArmed = 0;                        // Restore needs a second click before this time (ms)
 let chrome!: HTMLCanvasElement;     // the Paint window, drawn once
 let menuRects: { label: string; x: number; w: number }[] = [];
@@ -508,7 +517,7 @@ function buildChrome(): void {
   const my = FRAME + TITLE_H;
   let mx = FRAME + 6;
   menuRects = [];
-  for (const label of ['File', 'Edit', 'View', 'Image', 'Options', 'Help', 'Sound', 'Achievements']) {
+  for (const label of ['File', 'Edit', 'View', 'Image', 'Options', 'Help', 'Sound', 'Achievements', 'Patch Notes']) {
     const w = textW(label === 'Sound' ? 'Sound: off' : label, 2) + 12;
     menuRects.push({ label, x: mx, w });
     if (label !== 'Sound') text(g, label, mx + 6, my + 4, 2, BLACK);   // Sound is drawn live, it changes
@@ -1185,22 +1194,16 @@ function drawAchDialog(g: CanvasRenderingContext2D): void {
   }
   button(g, 'achclose', 'Close', x + w - 180, y + h - 44, 150, 30);
 }
-const NEWS_TITLE = 'WREATH QUEST v' + NEWS_VERSION;
-const NEWS_LINES = [
-  'Difficulty reduced. The wreaths were never the problem.',
-  'Fixed: nothing. It was working as intended.',
-  'Known issue: developer still thinks about you. No fix planned.',
-];
 function drawNewsDialog(g: CanvasRenderingContext2D): void {
   buttons.length = 0;   // modal: while this is up, only its two buttons are live
   const w = 600, inner = w - 76;
-  const items = NEWS_LINES.map(l => wrap(l, inner - 24, 2));
+  const items = PATCHES[0].notes.map(l => wrap(l, inner - 24, 2));
   const bodyH = items.reduce((n, ls) => n + ls.length * 18 + 8, 0);
   const h = 18 + 28 + 30 + bodyH + 18 + 30 + 20;
   const x = (PLAY_W - w) / 2, y = Math.round((PLAY_H - h) / 2);
   dialogBox(g, x, y, w, h);
   let cy = y + 18;
-  text(g, NEWS_TITLE, PLAY_W / 2, cy, 3, BLACK, 'center'); cy += 28;
+  text(g, 'WREATH QUEST v' + NEWS_VERSION, PLAY_W / 2, cy, 3, BLACK, 'center'); cy += 28;
   text(g, "What's New", PLAY_W / 2, cy, 2, DARK, 'center'); cy += 30;
   for (const ls of items) {
     ls.forEach((line, i) => { text(g, i === 0 ? '- ' + line : line, x + 38 + (i === 0 ? 0 : 24), cy, 2, BLACK); cy += 18; });
@@ -1213,6 +1216,29 @@ function drawNewsDialog(g: CanvasRenderingContext2D): void {
 function closeNews(also: boolean): void {
   newsOpen = false; save(STORE_NEWS, NEWS_VERSION); SFX.click();
   setStatus(also ? 'Also noted.' : 'Noted.', 3);
+}
+function drawPatchDialog(g: CanvasRenderingContext2D): void {
+  buttons.length = 0;   // while this is up, only its own button is live
+  const w = 640, x = (PLAY_W - w) / 2, inner = w - 76;
+  const blocks = PATCHES.map(p => ({ p, lines: p.notes.map(n => wrap(n, inner - 24, 2)) }));
+  const bodyH = blocks.reduce((n, b) => n + 26 + b.lines.reduce((m, ls) => m + ls.length * 18 + 6, 0) + 14, 0);
+  const h = 18 + 28 + 18 + bodyH + 8 + 30 + 18;
+  const y = Math.round((PLAY_H - h) / 2);
+  dialogBox(g, x, y, w, h);
+  let cy = y + 18;
+  text(g, 'PATCH NOTES', PLAY_W / 2, cy, 3, BLACK, 'center'); cy += 28 + 18;
+  blocks.forEach((b, k) => {
+    if (k > 0) { g.fillStyle = LIGHT; g.fillRect(x + 38, cy - 8, inner, 1); }   // a rule between versions
+    text(g, 'v' + b.p.v, x + 38, cy, 2, BLACK);
+    text(g, b.p.date, x + w - 38, cy, 2, DARK, 'right');
+    cy += 26;
+    for (const ls of b.lines) {
+      ls.forEach((line, i) => { text(g, i === 0 ? '- ' + line : line, x + 38 + (i === 0 ? 0 : 24), cy, 2, BLACK); cy += 18; });
+      cy += 6;
+    }
+    cy += 14;
+  });
+  button(g, 'patchclose', 'Close', PLAY_W / 2 - 75, y + h - 48, 150, 30);
 }
 function drawAchievement(g: CanvasRenderingContext2D): void {
   if (!G.achQueue.length) return;
@@ -1350,6 +1376,7 @@ function render(tNow: number): void {
   }
   drawAchievement(ctx);   // toasts show on every screen; some achievements come from the title
   if (achOpen) drawAchDialog(ctx);
+  if (patchOpen) drawPatchDialog(ctx);
   if (newsOpen) drawNewsDialog(ctx);
   ctx.restore();
 }
@@ -1370,6 +1397,7 @@ function onButton(id: string): void {
   switch (id) {
     case 'begin': startRun(); break;
     case 'achclose': achOpen = false; break;
+    case 'patchclose': patchOpen = false; break;
     case 'newsok': closeNews(false); break;
     case 'newsalso': closeNews(true); break;
     case 'restart': startRun(); break;
@@ -1394,6 +1422,7 @@ function chromeClick(x: number, y: number): boolean {
       else if (m.label === 'Image') setStatus('Invert Colors: still gray.', 4);
       else if (m.label === 'View') setStatus('View: this is the view.', 4);
       else if (m.label === 'Achievements') { achOpen = true; if (G.phase === 'playing') G.paused = true; SFX.click(); }
+      else if (m.label === 'Patch Notes') { patchOpen = true; if (G.phase === 'playing') G.paused = true; SFX.click(); }
       else setStatus('Options: there are no options. It is 1995.', 4);
       return true;
     }
@@ -1434,7 +1463,7 @@ canvas.addEventListener('mousedown', e => {
   const b = hitButton(x, y);
   if (b) { onButton(b.id); G.hover = null; return; }
   if (newsOpen) return;                        // the What's New box is modal: one of its buttons, or nothing
-  if (achOpen) { achOpen = false; return; }   // any click outside its button closes the Achievements dialog
+  if (achOpen || patchOpen) { achOpen = patchOpen = false; return; }   // any click outside its button closes the Achievements or Patch Notes dialog
   if (chromeClick(x, y)) return;
   if (G.phase === 'title') G.phase = 'howto';
   else if (G.phase === 'howto') startRun();
@@ -1454,7 +1483,7 @@ window.addEventListener('keydown', e => {
   if ((e.ctrlKey || e.metaKey) && (k === 's' || k === 'S')) { e.preventDefault(); setStatus('Saved as untitled.bmp. (It was not.)', 4); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
   if (newsOpen) { if (k === 'Escape' || k === ' ' || k === 'Enter') { closeNews(false); e.preventDefault(); } return; }
-  if (achOpen && (k === 'Escape' || k === ' ' || k === 'Enter')) { achOpen = false; SFX.click(); e.preventDefault(); return; }
+  if ((achOpen || patchOpen) && (k === 'Escape' || k === ' ' || k === 'Enter')) { achOpen = patchOpen = false; SFX.click(); e.preventDefault(); return; }
   if (k === 'ArrowLeft' || k === 'a' || k === 'A') { G.keys.left = true; e.preventDefault(); }
   if (k === 'ArrowRight' || k === 'd' || k === 'D') { G.keys.right = true; e.preventDefault(); }
   if (k === ' ' || k === 'Enter') {
