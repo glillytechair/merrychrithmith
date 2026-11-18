@@ -85,6 +85,9 @@ import works.
   that respond is an achievement.
 - Best XP, best perfect-day time, the sound setting and the set of achievements
   ever earned are kept in `localStorage` only.
+- A "What's New" box opens over the title the first time a browser loads a new
+  version. Its text is `NEWS_LINES` in `src/main.ts`; bump `NEWS_VERSION` to show
+  it again after the next update.
 
 ## Sound
 
