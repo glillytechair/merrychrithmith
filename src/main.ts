@@ -332,6 +332,7 @@ const ACH_HOW: Record<string, string> = {
 const STORE_ACH = 'wreathquest.achievements', STORE_BEST = 'wreathquest.best', STORE_TIME = 'wreathquest.besttime';
 const DEBUG = location.hash === '#debug' || location.hash === '#bot';   // tuning modes never save records
 const STORE_VERSION = 'wreathquest.v', SAVE_VERSION = '2';            // bump to wipe everyone's saved scores
+const STORE_NEWS = 'wreathquest.news', NEWS_VERSION = '1.1';          // the What's New box shows once per browser per version
 function load(key: string): string | null { try { return localStorage.getItem(key); } catch { return null; } }
 function save(key: string, v: string): void { if (DEBUG) return; try { localStorage.setItem(key, v); } catch { /* fine */ } }
 if (load(STORE_VERSION) !== SAVE_VERSION) {
@@ -378,6 +379,7 @@ let portrait!: HTMLCanvasElement;   // her portrait, cropped and scaled once
 let titleArt!: HTMLCanvasElement;   // the whole drawing, for the title screen
 let photo: HTMLImageElement | null = null;   // the photo; shown once every achievement has been earned
 let achOpen = false;                         // the Achievements dialog is up
+let newsOpen = load(STORE_NEWS) !== NEWS_VERSION;   // the What's New box is up (first load after an update)
 let restoreArmed = 0;                        // Restore needs a second click before this time (ms)
 let chrome!: HTMLCanvasElement;     // the Paint window, drawn once
 let menuRects: { label: string; x: number; w: number }[] = [];
@@ -1183,6 +1185,35 @@ function drawAchDialog(g: CanvasRenderingContext2D): void {
   }
   button(g, 'achclose', 'Close', x + w - 180, y + h - 44, 150, 30);
 }
+const NEWS_TITLE = 'WREATH QUEST v' + NEWS_VERSION;
+const NEWS_LINES = [
+  'Difficulty reduced. The wreaths were never the problem.',
+  'Fixed: nothing. It was working as intended.',
+  'Known issue: developer still thinks about you. No fix planned.',
+];
+function drawNewsDialog(g: CanvasRenderingContext2D): void {
+  buttons.length = 0;   // modal: while this is up, only its two buttons are live
+  const w = 600, inner = w - 76;
+  const items = NEWS_LINES.map(l => wrap(l, inner - 24, 2));
+  const bodyH = items.reduce((n, ls) => n + ls.length * 18 + 8, 0);
+  const h = 18 + 28 + 30 + bodyH + 18 + 30 + 20;
+  const x = (PLAY_W - w) / 2, y = Math.round((PLAY_H - h) / 2);
+  dialogBox(g, x, y, w, h);
+  let cy = y + 18;
+  text(g, NEWS_TITLE, PLAY_W / 2, cy, 3, BLACK, 'center'); cy += 28;
+  text(g, "What's New", PLAY_W / 2, cy, 2, DARK, 'center'); cy += 30;
+  for (const ls of items) {
+    ls.forEach((line, i) => { text(g, i === 0 ? '- ' + line : line, x + 38 + (i === 0 ? 0 : 24), cy, 2, BLACK); cy += 18; });
+    cy += 8;
+  }
+  cy += 18;
+  button(g, 'newsok', 'OK', PLAY_W / 2 - 160, cy, 150, 30);
+  button(g, 'newsalso', 'Also OK', PLAY_W / 2 + 10, cy, 150, 30);
+}
+function closeNews(also: boolean): void {
+  newsOpen = false; save(STORE_NEWS, NEWS_VERSION); SFX.click();
+  setStatus(also ? 'Also noted.' : 'Noted.', 3);
+}
 function drawAchievement(g: CanvasRenderingContext2D): void {
   if (!G.achQueue.length) return;
   const name = ACH[G.achQueue[0]];
@@ -1319,6 +1350,7 @@ function render(tNow: number): void {
   }
   drawAchievement(ctx);   // toasts show on every screen; some achievements come from the title
   if (achOpen) drawAchDialog(ctx);
+  if (newsOpen) drawNewsDialog(ctx);
   ctx.restore();
 }
 
@@ -1338,6 +1370,8 @@ function onButton(id: string): void {
   switch (id) {
     case 'begin': startRun(); break;
     case 'achclose': achOpen = false; break;
+    case 'newsok': closeNews(false); break;
+    case 'newsalso': closeNews(true); break;
     case 'restart': startRun(); break;
     case 'restore':
       if (restoreArmed > performance.now()) { restoreArmed = 0; resetProgress(); G.phase = 'title'; G.items = []; }   // and back to the title, like a fresh install
@@ -1399,6 +1433,7 @@ canvas.addEventListener('mousedown', e => {
   const { x, y } = toLogical(e);
   const b = hitButton(x, y);
   if (b) { onButton(b.id); G.hover = null; return; }
+  if (newsOpen) return;                        // the What's New box is modal: one of its buttons, or nothing
   if (achOpen) { achOpen = false; return; }   // any click outside its button closes the Achievements dialog
   if (chromeClick(x, y)) return;
   if (G.phase === 'title') G.phase = 'howto';
@@ -1418,6 +1453,7 @@ window.addEventListener('keydown', e => {
   if (!e.ctrlKey && !e.metaKey && !e.altKey && (k === 'm' || k === 'M')) { setSound(!soundOn); if (soundOn) SFX.click(); return; }
   if ((e.ctrlKey || e.metaKey) && (k === 's' || k === 'S')) { e.preventDefault(); setStatus('Saved as untitled.bmp. (It was not.)', 4); return; }
   if (e.ctrlKey || e.metaKey || e.altKey) return;
+  if (newsOpen) { if (k === 'Escape' || k === ' ' || k === 'Enter') { closeNews(false); e.preventDefault(); } return; }
   if (achOpen && (k === 'Escape' || k === ' ' || k === 'Enter')) { achOpen = false; SFX.click(); e.preventDefault(); return; }
   if (k === 'ArrowLeft' || k === 'a' || k === 'A') { G.keys.left = true; e.preventDefault(); }
   if (k === 'ArrowRight' || k === 'd' || k === 'D') { G.keys.right = true; e.preventDefault(); }
