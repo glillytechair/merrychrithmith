@@ -69,10 +69,9 @@ import works.
   "Indeed." Every 108 XP is a level ("Ding.").
 - Two catches within 140 ms count as two things at once: both are doubled.
 - The fifth wreath on the head pays a flat 50 XP bonus on the spot.
-- Consecutive catches raise the storm count. ×2 at 20, ×3 at 25 ("Went infinite").
-  A bad catch resets it.
-- You have three undos. A bad catch spends one; a missed wreath costs nothing but
-  the storm. Zero undos is a Sierra-style death.
+- Catches raise the storm count. ×2 at 12, ×3 at 20 ("Went infinite"). Only a
+  bad catch resets it; a dropped item or a border wreath leaves it alone.
+- You have three undos. A bad catch spends one; a missed wreath costs nothing. Zero undos is a Sierra-style death.
 - The item achievements take a few of a kind in one run: five S.Pellegrino, five
   Magic cards, five black hearts, three steaks, two sugars dodged.
 - The Achievements menu lists every achievement, says how each one was earned
@@ -121,9 +120,9 @@ All pacing lives in the constants block near the top of `src/main.ts`:
 | `FALL_START` / `FALL_END` | fall speed in px/s | 140 / 360 |
 | `BAD_START` / `BAD_END` | share of spawns that are bad | 0.20 / 0.30 |
 | `PAIR_START` / `PAIR_END` | share of spawns that arrive as a pair | 0.05 / 0.45 |
-| `XP_GOOD` / `XP_STEAK` / `XP_WREATH` | base XP per catch | 5 / 6 / 10 |
+| `XP_GOOD` / `XP_STEAK` / `XP_WREATH` | base XP per catch | 7 / 8 / 14 |
 | `STACK_BONUS` | flat XP when the fifth wreath lands | 50 |
-| `STORM_X2` / `STORM_X3` | storm counts for the ×2 and ×3 multipliers | 20 / 25 |
+| `STORM_X2` / `STORM_X3` | storm counts for the ×2 and ×3 multipliers | 12 / 20 |
 | `BAD_INSET` | bad things must hit the body, this many px inside the selection edge | 26 |
 | `CATCH_BAND` | things can only land within this band below the portrait's top | 56 |
 | `PERFECT_ZONE` | share of the head zone, out from the stack's center, where a wreath lands | 0.8 |
@@ -141,8 +140,8 @@ For tuning there is an auto-player: open `dist/index.html#bot` and the portrait
 plays itself (`window.__wq.G.botSkill` from 0 to 1). `#debug` exposes
 `window.__wq` with `G`, `startRun` and `update` so you can simulate runs headlessly
 from the console. In simulation, a strong player wins about half its runs around
-the two-minute mark; humans catch less than the bot, so expect real perfect days
-nearer two and a half to three minutes.
+the eighty-second mark, with a spread of roughly 1:05 to 1:30; real players have
+landed close to the bot, so expect perfect days in about that range.
 
 ## What to polish next
 
@@ -156,7 +155,7 @@ nearer two and a half to three minutes.
 4. **An About dialog** under Help, in the Win95 style, with the credit and the
    story of the drawing. The menus currently only post one-liners to the status bar.
 5. **Image > Invert Colors** as a real effect for the storm climax; currently the
-   play area inverts for half a second when the storm count hits 40.
+   play area inverts for half a second when the storm count goes infinite.
 6. **Integer pixel scaling option.** The canvas scales fractionally to fit the
    window, which keeps it crisp but makes pixels uneven at odd zoom levels.
 7. **Pacing by hand.** The constants were set with the bot; one or two real

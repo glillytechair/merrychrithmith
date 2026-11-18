@@ -21,9 +21,9 @@ const PERFECT_DAY = 1080;        // XP for a perfect day. 1 minute = 1 XP.
 const XP_PER_LEVEL = 108;        // ten levels to a perfect day
 const START_UNDOS = 3;           // Paint only ever had three
 const RAMP_SECONDS = 170;        // seconds until difficulty maxes out
-const XP_GOOD = 5;
-const XP_STEAK = 6;
-const XP_WREATH = 10;
+const XP_GOOD = 7;
+const XP_STEAK = 8;
+const XP_WREATH = 14;
 const STACK_BONUS = 50;          // flat XP, no multiplier, the moment the fifth wreath lands
 const DOUBLE_WINDOW_MS = 140;    // two catches this close together = two things at once
 const BANNER_LINGER = 1;         // extra seconds every pop-up banner and achievement toast stays on screen
@@ -31,8 +31,8 @@ const MUSIC_LEVEL = 0.44;        // gain of the Paint music bus
 const LAND_FX = 0.45;            // seconds the portrait's selection flashes after a wreath lands
 const PERFECT_ZONE = 0.8;        // share of the head zone, out from the stack's center, where a wreath lands; beyond it the wreath bounces
 const EDGE_SLOP = 0.3;           // how far past the head zone a wreath still bounces off instead of falling on to a border
-const STORM_X2 = 20;             // storm count for x2
-const STORM_X3 = 25;             // storm count for x3 ("infinite")
+const STORM_X2 = 12;             // storm count for x2
+const STORM_X3 = 20;             // storm count for x3 ("infinite")
 const SPAWN_START = 1.25, SPAWN_END = 0.38;     // seconds between spawns
 const WARMUP_HOLD = 10, WARMUP_END = 30;        // seconds: spawns stay sparse until the hold ends, then ease to normal
 const WARMUP_SPACING = 2;                        // multiplier on the time between spawns during the hold
@@ -855,7 +855,7 @@ function catchBad(it: Item): void { loseUndo(it.kind, pick(KINDS[it.kind].bad!))
 function borderFail(): void {
   G.borderFx = 1;
   SFX.border();
-  G.storm = 0; G.shakeFx = 0.35;   // a miss breaks the streak and rattles the frame, and that is all it costs
+  G.shakeFx = 0.35;   // a miss rattles the frame, and that is all it costs: only a bad catch breaks the storm
 }
 
 // ============================================================================
