@@ -56,7 +56,8 @@ import works.
 ## Controls and rules
 
 - Mouse moves the portrait (the cursor sits over the head). `←`/`→` or `A`/`D` also
-  work. `P` or `Esc` pauses. `Space`/`Enter` starts and restarts.
+  work. `P` or `Esc` pauses. `Space`/`Enter` starts and restarts. On a phone, drag a
+  finger anywhere to steer (the portrait moves 1.3 times as far) and tap to begin.
 - Catch: wreaths (on the head), S.Pellegrino, Magic cards, black hearts, steak.
   One Magic card in three is rare: a gold border, and it pays three ordinary cards.
 - A wreath has to line up with the stack. Two selection handles above the stack

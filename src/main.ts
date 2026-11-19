@@ -45,6 +45,7 @@ const WREATH_SHARE = 0.15;                      // share of non-bad spawns that 
 const RARE_CARD_SHARE = 1 / 3;                  // share of Magic cards that are rare: gold border, worth more
 const RARE_CARD_MULT = 3;                       // a rare card pays this many ordinary cards
 const MOUSE_SPEED = 1700, KEY_SPEED = 620;      // px per second
+const TOUCH_GAIN = 1.3;                         // a finger drag moves the portrait this many times as far as the finger
 
 // ----- Layout (all in logical pixels; the canvas is scaled with CSS) --------
 const PLAY_W = 800, PLAY_H = 600;   // the 4:3 "image" inside Paint
@@ -335,8 +336,7 @@ const STORE_VERSION = 'wreathquest.v', SAVE_VERSION = '2';            // bump to
 const PATCHES: { v: string; date: string; notes: string[] }[] = [   // newest first; the first entry is also the What's New box
   { v: '1.1', date: 'Nov 18, 2026', notes: [
     'Difficulty reduced. The wreaths were never the problem.',
-    'Fixed: nothing. It was working as intended.',
-    'Known issue: developer still thinks about you. No fix planned.',
+    'Finger steering on phones. Drag anywhere; tap to begin.',
   ] },
   { v: '1.0', date: 'Nov 15, 2026', notes: ['Shipped.'] },
 ];
@@ -1320,7 +1320,7 @@ function drawHowto(g: CanvasRenderingContext2D): void {
   cy = top;
   legend('AVOID', x + w / 2 + 30, ['beach', 'dasani', 'counterspell', 'comforter', 'sugar']);
   cy += 6;
-  for (const l of ['Mouse, ← →, or A and D. P pauses. M mutes.', 'One minute is one XP.', PERFECT_DAY + ' XP is a perfect day.', 'Two things at once is double XP.']) { text(g, l, PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 18; }
+  for (const l of ['Mouse or finger, ← →, or A and D. P pauses. M mutes.', 'One minute is one XP.', PERFECT_DAY + ' XP is a perfect day.', 'Two things at once is double XP.']) { text(g, l, PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 18; }
   button(g, 'begin', 'Begin', PLAY_W / 2 - 75, y + h - 50, 150, 30);
 }
 function drawTitle(g: CanvasRenderingContext2D): void {
@@ -1446,7 +1446,22 @@ function chromeClick(x: number, y: number): boolean {
   }
   return false;
 }
+/** A click or a tap at a logical point: buttons first, then the dialogs, the Paint chrome, and finally the game. */
+function pressAt(x: number, y: number): void {
+  ensureAudio();
+  const b = hitButton(x, y);
+  if (b) { onButton(b.id); G.hover = null; return; }
+  if (newsOpen) return;                        // the What's New box is modal: one of its buttons, or nothing
+  if (achOpen || patchOpen) { achOpen = patchOpen = false; return; }   // any click outside its button closes the Achievements or Patch Notes dialog
+  if (chromeClick(x, y)) return;
+  if (G.phase === 'title') G.phase = 'howto';
+  else if (G.phase === 'howto') startRun();
+  else if (G.phase === 'playing' && G.paused) G.paused = false;
+}
+let touchSteer = false;   // the last pointer was a finger; the mouse handlers stand aside until a mouse shows up again
+let drag: { startX: number; startPx: number; moved: boolean } | null = null;
 canvas.addEventListener('mousemove', e => {
+  if (touchSteer) return;
   const { x, y } = toLogical(e);
   G.mouseX = x - PLAY_X; G.mouseY = y - PLAY_Y;
   const b = hitButton(x, y);
@@ -1457,18 +1472,36 @@ canvas.addEventListener('mousemove', e => {
   }
 });
 canvas.addEventListener('mousedown', e => {
-  if (e.button !== 0) return;
-  ensureAudio();
+  if (e.button !== 0 || touchSteer) return;
   const { x, y } = toLogical(e);
-  const b = hitButton(x, y);
-  if (b) { onButton(b.id); G.hover = null; return; }
-  if (newsOpen) return;                        // the What's New box is modal: one of its buttons, or nothing
-  if (achOpen || patchOpen) { achOpen = patchOpen = false; return; }   // any click outside its button closes the Achievements or Patch Notes dialog
-  if (chromeClick(x, y)) return;
-  if (G.phase === 'title') G.phase = 'howto';
-  else if (G.phase === 'howto') startRun();
-  else if (G.phase === 'playing' && G.paused) G.paused = false;
+  pressAt(x, y);
 });
+// Fingers: drag anywhere to steer, tap to press. preventDefault on pointerdown also stops the browser's imitation mouse events.
+canvas.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse') { touchSteer = false; return; }
+  touchSteer = true;
+  const { x } = toLogical(e);
+  drag = { startX: x, startPx: G.px, moved: false };
+  try { canvas.setPointerCapture(e.pointerId); } catch { /* fine */ }
+  e.preventDefault();
+});
+canvas.addEventListener('pointermove', e => {
+  if (e.pointerType === 'mouse') { touchSteer = false; return; }
+  if (!drag) return;
+  const { x } = toLogical(e);
+  if (Math.abs(x - drag.startX) > 6) drag.moved = true;
+  if (G.phase === 'playing' && !G.bot) { G.usingKeys = false; G.targetX = clamp(drag.startPx + (x - drag.startX) * TOUCH_GAIN, 0, maxPX()); }
+  e.preventDefault();
+});
+const fingerUp = (e: PointerEvent) => {
+  if (e.pointerType === 'mouse' || !drag) return;
+  const tap = !drag.moved && e.type === 'pointerup';
+  drag = null;
+  if (tap) { const { x, y } = toLogical(e); pressAt(x, y); }
+  e.preventDefault();
+};
+canvas.addEventListener('pointerup', fingerUp);
+canvas.addEventListener('pointercancel', fingerUp);
 canvas.addEventListener('contextmenu', e => e.preventDefault());
 window.addEventListener('keydown', e => {
   const k = e.key;
