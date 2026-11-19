@@ -336,7 +336,7 @@ const STORE_VERSION = 'wreathquest.v', SAVE_VERSION = '2';            // bump to
 const PATCHES: { v: string; date: string; notes: string[] }[] = [   // newest first; the first entry is also the What's New box
   { v: '1.1', date: 'Nov 18, 2026', notes: [
     'Difficulty reduced. The wreaths were never the problem.',
-    'Finger steering on phones. Drag anywhere; tap to begin.',
+    'Added finger steering, for the tap-averse.',
   ] },
   { v: '1.0', date: 'Nov 15, 2026', notes: ['Shipped.'] },
 ];
