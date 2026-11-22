@@ -60,6 +60,8 @@ import works.
   finger anywhere to steer (the portrait moves 1.3 times as far) and tap to begin.
 - Catch: wreaths (on the head), S.Pellegrino, Magic cards, black hearts, steak.
   One Magic card in three is rare: a gold border, and it pays three ordinary cards.
+  The deck count under the clock shows how many Magic cards have been caught this
+  run and, in gold, how many of them were rare. The end screen repeats it.
 - A wreath has to line up with the stack. Two selection handles above the stack
   mark the landing zone all run long and turn solid while a falling wreath is lined
   up. A wreath that comes down near the edge bounces off and falls clear; that

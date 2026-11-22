@@ -334,6 +334,9 @@ const STORE_ACH = 'wreathquest.achievements', STORE_BEST = 'wreathquest.best', S
 const DEBUG = location.hash === '#debug' || location.hash === '#bot';   // tuning modes never save records
 const STORE_VERSION = 'wreathquest.v', SAVE_VERSION = '2';            // bump to wipe everyone's saved scores
 const PATCHES: { v: string; date: string; notes: string[] }[] = [   // newest first; the first entry is also the What's New box
+  { v: '1.2', date: 'Nov 22, 2026', notes: [
+    'Added a deck count. Magic cards caught, and how many were rare.',
+  ] },
   { v: '1.1', date: 'Nov 18, 2026', notes: [
     'Difficulty reduced. The wreaths were never the problem.',
     'Added finger steering, for the tap-averse.',
@@ -362,7 +365,7 @@ const G = {
   phase: 'title' as Phase,
   t: 0, xp: 0, storm: 0, undos: START_UNDOS, stack: 0, level: 0,
   items: [] as Item[],
-  spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0,
+  spawnTimer: 0.8, spawnCount: 0, dodged: 0, caught: 0, wreathsOnHead: 0, rares: 0,
   catches: {} as Partial<Record<Kind, number>>, dodges: {} as Partial<Record<Kind, number>>,   // per kind, this run
   px: 0, targetX: 0,
   floaters: [] as Floater[],
@@ -759,7 +762,7 @@ function startRun(): void {
   lastAchSound = '';
   G.phase = 'playing';
   G.t = 0; G.xp = 0; G.storm = 0; G.undos = START_UNDOS; G.stack = 0; G.level = 0;
-  G.items = []; G.spawnTimer = 0.7; G.spawnCount = 0; G.dodged = 0; G.caught = 0; G.wreathsOnHead = 0; G.catches = {}; G.dodges = {};
+  G.items = []; G.spawnTimer = 0.7; G.spawnCount = 0; G.dodged = 0; G.caught = 0; G.wreathsOnHead = 0; G.rares = 0; G.catches = {}; G.dodges = {};
   G.floaters = []; G.flyers = []; G.xpFlash = 0; G.landFx = 0; G.banner = null; G.achQueue = []; G.achT = 0;
   G.borderFx = 0; G.infFx = 0; G.shakeFx = 0; G.dyingT = 0;
   G.lastCatchAt = -1e9; G.lastCatchXP = 0; G.cause = ''; G.deathMsg = '';
@@ -827,7 +830,7 @@ function catchGood(it: Item): void {
   SFX.blip(G.storm);
   if (it.rare) SFX.rare();
   award(KINDS[it.kind].xp * (it.rare ? RARE_CARD_MULT : 1), it.x + it.w / 2, it.y, it.rare ? 'RARE' : KINDS[it.kind].label);
-  if (it.rare) unlock('rare');
+  if (it.rare) { unlock('rare'); G.rares++; }
   const n = (G.catches[it.kind] = (G.catches[it.kind] ?? 0) + 1);
   if (it.kind === 'pellegrino' && n >= ACH_NEED.hydrated) unlock('hydrated');
   if (it.kind === 'card' && n >= ACH_NEED.card) unlock('card');
@@ -1133,7 +1136,14 @@ function drawHUD(g: CanvasRenderingContext2D): void {
   if (infinite) text(g, 'STORM ' + G.storm, PLAY_W - 12, 30, 2, DARK, 'right');   // the count keeps going under the box
   else text(g, STORM_X3 + ' FOR INFINITE', PLAY_W - 12, 30, 2, DARK, 'right');    // and until then, what it takes
   text(g, fmtTime(G.t), PLAY_W / 2, 10, 2, DARK, 'center');
+  // deck count: Magic cards caught this run, with the rare ones in the one color the game allows
+  const deckStr = 'DECK ' + deckCount(), rareStr = G.rares ? G.rares + ' RARE' : '';
+  const dw = textW(deckStr, 2), gap = rareStr ? 12 : 0, rw = textW(rareStr, 2), dx = Math.round(PLAY_W / 2 - (dw + gap + rw) / 2);
+  text(g, deckStr, dx, 30, 2, DARK);
+  if (rareStr) { const rx = dx + dw + gap; g.fillStyle = BLACK; g.fillRect(rx - 3, 27, rw + 6, 18); text(g, rareStr, rx, 30, 2, GOLD); }
 }
+function deckCount(): number { return G.catches.card ?? 0; }
+function deckLine(): string { const n = deckCount(); return 'Deck: ' + n + (n === 1 ? ' card' : ' cards') + ', ' + G.rares + ' rare.'; }
 function drawFloaters(g: CanvasRenderingContext2D): void {
   for (const f of G.floaters) {
     const k = f.t / f.life;
@@ -1266,7 +1276,7 @@ function drawEndDialog(g: CanvasRenderingContext2D): void {
   const more = G.runAch.length - achList.length;
   const noteLines = wrap(PERSONAL_NOTE, w - 84, 2).slice(0, 4);
   const creditLines = wrap(ART_CREDIT, w - 60, 2).slice(0, 2);
-  const headH = won ? 54 + 22 + 26 : deathLines.length * 20 + 6 + 20 + 26;
+  const headH = (won ? 54 + 22 + 26 : deathLines.length * 20 + 6 + 20 + 26) + 20;
   const listRows = Math.max(1, achList.length + (more > 0 ? 1 : 0));
   const noteH = noteLines.length * 18 + 20;
   const h = 22 + headH + 22 + listRows * 16 + 14 + noteH + 8 + creditLines.length * 16 + 58;
@@ -1276,12 +1286,14 @@ function drawEndDialog(g: CanvasRenderingContext2D): void {
   if (won) {
     text(g, 'Indeed.', PLAY_W / 2, cy, 6, BLACK, 'center'); cy += 54;
     text(g, 'A perfect day. ' + PERFECT_DAY + ' XP in ' + fmtTime(G.finishTime) + '.', PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 22;
-    if (bestTime) text(g, 'Best time: ' + fmtTime(bestTime), PLAY_W / 2, cy, 2, DARK, 'center'); cy += 26;
+    if (bestTime) text(g, 'Best time: ' + fmtTime(bestTime), PLAY_W / 2, cy, 2, DARK, 'center'); cy += 20;
+    text(g, deckLine(), PLAY_W / 2, cy, 2, DARK, 'center'); cy += 26;
   } else {
     deathLines.forEach(l => { text(g, l, PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 20; });
     cy += 6;
     text(g, 'XP ' + G.xp + ' / ' + PERFECT_DAY + '   LEVEL ' + G.level + '   ' + fmtTime(G.t), PLAY_W / 2, cy, 2, BLACK, 'center'); cy += 20;
-    text(g, 'Best: ' + bestXP + ' XP', PLAY_W / 2, cy, 2, DARK, 'center'); cy += 26;
+    text(g, 'Best: ' + bestXP + ' XP', PLAY_W / 2, cy, 2, DARK, 'center'); cy += 20;
+    text(g, deckLine(), PLAY_W / 2, cy, 2, DARK, 'center'); cy += 26;
   }
   text(g, 'ACHIEVEMENTS THIS RUN: ' + G.runAch.length + '   (' + everAch.size + '/' + ACH_TOTAL + ' ever)', x + 30, cy, 2, BLACK); cy += 22;
   if (!achList.length) text(g, 'None. Which is itself notable.', x + 30, cy, 2, DARK);
